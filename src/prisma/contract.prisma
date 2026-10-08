@@ -1,21 +1,424 @@
 // use prisma-8
+// Contract inferred from the live database schema. Edit as needed, then run `prisma contract emit`.
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  username  String?
-  name      String?
-  posts     Post[]
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
-}
+namespace public {
+  model Industries {
+    id        Uuid        @id(map: "industries_pkey") @default(sql`gen_random_uuid()`)
+    name      String      @unique(map: "industries_name_key")
+    isActive  Boolean     @default(true) @map("is_active")
+    companies Companies[]
 
-model Post {
-  id        Int      @id @default(autoincrement())
-  title     String
-  content   String?
-  author    User     @relation(fields: [authorId], references: [id])
-  authorId  Int
-  createdAt TimestamptzString @default(now())
-  updatedAt temporal.updatedAtString()
+    @@rls
+    @@map("industries")
+  }
+
+  // WARNING: Foreign key "id" -> "auth.users" exists in the database, but its target schema is outside the introspected scope, so no relation field was generated. If the target schema is described by an extension pack, add it to extensions and re-run infer.
+  model Profiles {
+    id                     Uuid                     @id(map: "profiles_pkey")
+    fullName               String                   @map("full_name")
+    email                  String                   @unique(map: "profiles_email_key")
+    isActive               Boolean                  @default(true) @map("is_active")
+    createdAt              TimestamptzString        @default(now()) @map("created_at")
+    customFieldDefinitions CustomFieldDefinitions[]
+    historyLogs            HistoryLog[]
+    notifications          Notifications[]
+    remarks                Remarks[]
+    companies              Companies[]              @relation(name: "companies_archived_by_fkey")
+    companiesCompanies     Companies[]              @relation(name: "companies_assigned_to_fkey")
+    companies2             Companies[]              @relation(name: "companies_created_by_fkey")
+    reminders              Reminders[]              @relation(name: "reminders_assigned_to_fkey")
+    remindersReminders     Reminders[]              @relation(name: "reminders_created_by_fkey")
+
+    @@rls
+    @@map("profiles")
+  }
+
+  model States {
+    id        Uuid        @id(map: "states_pkey") @default(sql`gen_random_uuid()`)
+    name      String      @unique(map: "states_name_key")
+    isActive  Boolean     @default(true) @map("is_active")
+    companies Companies[]
+
+    @@rls
+    @@map("states")
+  }
+
+  model Companies {
+    id               Uuid                   @id(map: "companies_pkey") @default(sql`gen_random_uuid()`)
+    name             String
+    industryId       Uuid?                  @map("industry_id")
+    stateId          Uuid?                  @map("state_id")
+    location         String?
+    status           pg.enum(LeadStatus)    @default("new")
+    priority         pg.enum(PriorityLevel) @default("medium")
+    assignedTo       Uuid?                  @map("assigned_to")
+    customFields     Jsonb                  @default(json`{}`) @map("custom_fields")
+    lastContactedAt  TimestamptzString?     @map("last_contacted_at")
+    isArchived       Boolean                @default(false) @map("is_archived")
+    archivedAt       TimestamptzString?     @map("archived_at")
+    archivedBy       Uuid?                  @map("archived_by")
+    archiveReason    String?                @map("archive_reason")
+    createdBy        Uuid?                  @map("created_by")
+    createdAt        TimestamptzString      @default(now()) @map("created_at")
+    updatedAt        TimestamptzString      @default(now()) @map("updated_at")
+    contacts         Contacts[]
+    historyLogs      HistoryLog[]
+    notifications    Notifications[]
+    remarks          Remarks[]
+    reminders        Reminders[]
+    profiles         Profiles?              @relation(name: "companies_archived_by_fkey", fields: [archivedBy], references: [id], map: "companies_archived_by_fkey", index: false)
+    profilesProfiles Profiles?              @relation(name: "companies_assigned_to_fkey", fields: [assignedTo], references: [id], map: "companies_assigned_to_fkey")
+    profiles2        Profiles?              @relation(name: "companies_created_by_fkey", fields: [createdBy], references: [id], map: "companies_created_by_fkey", index: false)
+    industry         Industries?            @relation(fields: [industryId], references: [id], map: "companies_industry_id_fkey")
+    state            States?                @relation(fields: [stateId], references: [id], map: "companies_state_id_fkey")
+
+    @@index([isArchived], map: "idx_companies_archived")
+    @@index([assignedTo], map: "idx_companies_assigned")
+    @@index([customFields], map: "idx_companies_custom", type: "gin")
+    @@index([industryId], map: "idx_companies_industry")
+    @@index([lastContactedAt], map: "idx_companies_last_contact")
+    @@index([name], map: "idx_companies_name_trgm", type: "gin")
+    @@index(expression: "lower(btrim(name))", map: "idx_companies_name_unique", unique: true)
+    @@index([priority], map: "idx_companies_priority")
+    @@index([stateId], map: "idx_companies_state")
+    @@index([status], map: "idx_companies_status")
+    @@rls
+    @@map("companies")
+  }
+
+  model Contacts {
+    id        Uuid              @id(map: "contacts_pkey") @default(sql`gen_random_uuid()`)
+    companyId Uuid              @map("company_id")
+    name      String
+    jobTitle  String?           @map("job_title")
+    email     String?
+    phone     String?
+    isPrimary Boolean           @default(false) @map("is_primary")
+    createdAt TimestamptzString @default(now()) @map("created_at")
+    updatedAt TimestamptzString @default(now()) @map("updated_at")
+    company   Companies         @relation(fields: [companyId], references: [id], onDelete: Cascade, map: "contacts_company_id_fkey")
+
+    @@index([companyId], map: "idx_contacts_company")
+    @@index([email], map: "idx_contacts_email_trgm", type: "gin")
+    @@index([name], map: "idx_contacts_name_trgm", type: "gin")
+    @@index([companyId], map: "idx_contacts_one_primary", where: "is_primary", unique: true)
+    @@index([phone], map: "idx_contacts_phone_trgm", type: "gin")
+    @@rls
+    @@map("contacts")
+  }
+
+  model CustomFieldDefinitions {
+    id        Uuid                     @id(map: "custom_field_definitions_pkey") @default(sql`gen_random_uuid()`)
+    name      String
+    fieldType pg.enum(CustomFieldType) @default("text") @map("field_type")
+    options   Jsonb?
+    isActive  Boolean                  @default(true) @map("is_active")
+    createdBy Uuid?                    @map("created_by")
+    createdAt TimestamptzString        @default(now()) @map("created_at")
+    profiles  Profiles?                @relation(fields: [createdBy], references: [id], map: "custom_field_definitions_created_by_fkey", index: false)
+
+    @@index(expression: "lower(btrim(name))", map: "idx_custom_field_name", unique: true)
+    @@check(expression: "((field_type <> 'dropdown'::custom_field_type) OR (jsonb_typeof(options) = 'array'::text))", map: "dropdown_needs_options")
+    @@rls
+    @@map("custom_field_definitions")
+  }
+
+  model HistoryLog {
+    id        Uuid                   @id(map: "history_log_pkey") @default(sql`gen_random_uuid()`)
+    companyId Uuid                   @map("company_id")
+    actorId   Uuid?                  @map("actor_id")
+    action    pg.enum(HistoryAction)
+    oldValue  String?                @map("old_value")
+    newValue  String?                @map("new_value")
+    details   Jsonb                  @default(json`{}`)
+    createdAt TimestamptzString      @default(now()) @map("created_at")
+    actor     Profiles?              @relation(fields: [actorId], references: [id], map: "history_log_actor_id_fkey", index: false)
+    company   Companies              @relation(fields: [companyId], references: [id], onDelete: Restrict, map: "history_log_company_id_fkey", index: "idx_history_company")
+
+    @@index([companyId, createdAt], map: "idx_history_company")
+    @@index([action, newValue, createdAt], map: "idx_history_stats")
+    @@rls
+    @@map("history_log")
+  }
+
+  model Remarks {
+    id            Uuid               @id(map: "remarks_pkey") @default(sql`gen_random_uuid()`)
+    companyId     Uuid               @map("company_id")
+    authorId      Uuid               @default(sql`auth.uid()`) @map("author_id")
+    body          String
+    mentions      Uuid[]             @default([]) @noCheck(elementNotNull)
+    editedAt      TimestamptzString? @map("edited_at")
+    createdAt     TimestamptzString  @default(now()) @map("created_at")
+    notifications Notifications[]
+    author        Profiles           @relation(fields: [authorId], references: [id], map: "remarks_author_id_fkey", index: false)
+    company       Companies          @relation(fields: [companyId], references: [id], onDelete: Cascade, map: "remarks_company_id_fkey", index: "idx_remarks_company")
+
+    @@index([body], map: "idx_remarks_body_trgm", type: "gin")
+    @@index([companyId, createdAt], map: "idx_remarks_company")
+    @@check(expression: "(length(btrim(body)) > 0)", map: "remarks_body_check")
+    @@rls
+    @@map("remarks")
+  }
+
+  model Notifications {
+    id        Uuid                      @id(map: "notifications_pkey") @default(sql`gen_random_uuid()`)
+    userId    Uuid                      @map("user_id")
+    _type     pg.enum(NotificationType) @map("type")
+    companyId Uuid?                     @map("company_id")
+    remarkId  Uuid?                     @map("remark_id")
+    message   String
+    readAt    TimestamptzString?        @map("read_at")
+    createdAt TimestamptzString         @default(now()) @map("created_at")
+    company   Companies?                @relation(fields: [companyId], references: [id], onDelete: Cascade, map: "notifications_company_id_fkey", index: false)
+    remark    Remarks?                  @relation(fields: [remarkId], references: [id], onDelete: Cascade, map: "notifications_remark_id_fkey", index: false)
+    user      Profiles                  @relation(fields: [userId], references: [id], onDelete: Cascade, map: "notifications_user_id_fkey", index: "idx_notifications_user")
+
+    @@index([userId, readAt, createdAt], map: "idx_notifications_user")
+    @@rls
+    @@map("notifications")
+  }
+
+  model Reminders {
+    id               Uuid                    @id(map: "reminders_pkey") @default(sql`gen_random_uuid()`)
+    companyId        Uuid                    @map("company_id")
+    assignedTo       Uuid                    @map("assigned_to")
+    createdBy        Uuid?                   @default(sql`auth.uid()`) @map("created_by")
+    _type            pg.enum(ReminderType)   @map("type")
+    source           pg.enum(ReminderSource) @default("manual")
+    dueAt            TimestamptzString       @map("due_at")
+    note             String?
+    completedAt      TimestamptzString?      @map("completed_at")
+    createdAt        TimestamptzString       @default(now()) @map("created_at")
+    profiles         Profiles                @relation(name: "reminders_assigned_to_fkey", fields: [assignedTo], references: [id], map: "reminders_assigned_to_fkey", index: false)
+    company          Companies               @relation(fields: [companyId], references: [id], onDelete: Cascade, map: "reminders_company_id_fkey")
+    profilesProfiles Profiles?               @relation(name: "reminders_created_by_fkey", fields: [createdBy], references: [id], map: "reminders_created_by_fkey", index: false)
+
+    @@index([companyId], map: "idx_reminders_company")
+    @@index([assignedTo, dueAt], map: "idx_reminders_open", where: "(completed_at IS NULL)")
+    @@rls
+    @@map("reminders")
+  }
+
+  native_enum CustomFieldType {
+    text = "text"
+    number = "number"
+    date = "date"
+    dropdown = "dropdown"
+    @@map("custom_field_type")
+  }
+
+  native_enum HistoryAction {
+    added = "added"
+    status_changed = "status_changed"
+    reassigned = "reassigned"
+    priority_changed = "priority_changed"
+    remark_posted = "remark_posted"
+    reminder_created = "reminder_created"
+    archived = "archived"
+    restored = "restored"
+    @@map("history_action")
+  }
+
+  native_enum LeadStatus {
+    new = "new"
+    contacted = "contacted"
+    not_interested = "not_interested"
+    contact_later = "contact_later"
+    meeting_scheduled = "meeting_scheduled"
+    @@map("lead_status")
+  }
+
+  native_enum NotificationType {
+    mention = "mention"
+    assigned = "assigned"
+    @@map("notification_type")
+  }
+
+  native_enum PriorityLevel {
+    low = "low"
+    medium = "medium"
+    high = "high"
+    @@map("priority_level")
+  }
+
+  native_enum ReminderSource {
+    auto = "auto"
+    manual = "manual"
+    @@map("reminder_source")
+  }
+
+  native_enum ReminderType {
+    callback = "callback"
+    missed_call = "missed_call"
+    meeting = "meeting"
+    manual = "manual"
+    @@map("reminder_type")
+  }
+
+  policy_insert add_companies {
+    target = Companies
+    roles = [authenticated]
+    withCheck = "true"
+    @@map("add companies")
+  }
+
+  policy_insert add_contacts {
+    target = Contacts
+    roles = [authenticated]
+    withCheck = "true"
+    @@map("add contacts")
+  }
+
+  policy_insert add_custom_fields {
+    target = CustomFieldDefinitions
+    roles = [authenticated]
+    withCheck = "(created_by = auth.uid())"
+    @@map("add custom fields")
+  }
+
+  policy_insert add_remarks {
+    target = Remarks
+    roles = [authenticated]
+    withCheck = "(author_id = auth.uid())"
+    @@map("add remarks")
+  }
+
+  policy_insert add_reminders {
+    target = Reminders
+    roles = [authenticated]
+    withCheck = "true"
+    @@map("add reminders")
+  }
+
+  policy_delete delete_contacts {
+    target = Contacts
+    roles = [authenticated]
+    using = "true"
+    @@map("delete contacts")
+  }
+
+  policy_delete delete_reminders {
+    target = Reminders
+    roles = [authenticated]
+    using = "true"
+    @@map("delete reminders")
+  }
+
+  policy_update edit_companies {
+    target = Companies
+    roles = [authenticated]
+    using = "true"
+    withCheck = "true"
+    @@map("edit companies")
+  }
+
+  policy_update edit_contacts {
+    target = Contacts
+    roles = [authenticated]
+    using = "true"
+    withCheck = "true"
+    @@map("edit contacts")
+  }
+
+  policy_update edit_custom_fields {
+    target = CustomFieldDefinitions
+    roles = [authenticated]
+    using = "true"
+    withCheck = "true"
+    @@map("edit custom fields")
+  }
+
+  policy_update edit_own_remarks {
+    target = Remarks
+    roles = [authenticated]
+    using = "(author_id = auth.uid())"
+    withCheck = "(author_id = auth.uid())"
+    @@map("edit own remarks")
+  }
+
+  policy_update edit_reminders {
+    target = Reminders
+    roles = [authenticated]
+    using = "true"
+    withCheck = "true"
+    @@map("edit reminders")
+  }
+
+  policy_select read_companies {
+    target = Companies
+    roles = [authenticated]
+    using = "true"
+    @@map("read companies")
+  }
+
+  policy_select read_contacts {
+    target = Contacts
+    roles = [authenticated]
+    using = "true"
+    @@map("read contacts")
+  }
+
+  policy_select read_custom_fields {
+    target = CustomFieldDefinitions
+    roles = [authenticated]
+    using = "true"
+    @@map("read custom fields")
+  }
+
+  policy_select read_history {
+    target = HistoryLog
+    roles = [authenticated]
+    using = "true"
+    @@map("read history")
+  }
+
+  policy_select read_industries {
+    target = Industries
+    roles = [authenticated]
+    using = "true"
+    @@map("read industries")
+  }
+
+  policy_select read_own_notifications {
+    target = Notifications
+    roles = [authenticated]
+    using = "(user_id = auth.uid())"
+    @@map("read own notifications")
+  }
+
+  policy_select read_profiles {
+    target = Profiles
+    roles = [authenticated]
+    using = "true"
+    @@map("read profiles")
+  }
+
+  policy_select read_remarks {
+    target = Remarks
+    roles = [authenticated]
+    using = "true"
+    @@map("read remarks")
+  }
+
+  policy_select read_reminders {
+    target = Reminders
+    roles = [authenticated]
+    using = "true"
+    @@map("read reminders")
+  }
+
+  policy_select read_states {
+    target = States
+    roles = [authenticated]
+    using = "true"
+    @@map("read states")
+  }
+
+  policy_update update_own_notifications {
+    target = Notifications
+    roles = [authenticated]
+    using = "(user_id = auth.uid())"
+    withCheck = "(user_id = auth.uid())"
+    @@map("update own notifications")
+  }
 }
