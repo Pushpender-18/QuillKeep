@@ -12,9 +12,10 @@ import type { ProfileUser } from '@/lib/auth';
 
 interface SidebarProps {
   user: ProfileUser;
+  overdueCount?: number;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ user, overdueCount = 0 }) => {
   const pathname = usePathname();
 
   const navItems = [
@@ -51,14 +52,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ user }) => {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+                  'flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                   isActive
                     ? 'bg-[#201F20] text-white border border-white/[0.08] shadow-sm'
                     : 'text-[#8E8E93] hover:text-white hover:bg-white/[0.04]'
                 )}
               >
-                <Icon className={cn('w-4 h-4', isActive ? 'text-[#0A84FF]' : 'text-[#8E8E93]')} />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-3">
+                  <Icon className={cn('w-4 h-4', isActive ? 'text-[#0A84FF]' : 'text-[#8E8E93]')} />
+                  <span>{item.label}</span>
+                </div>
+                {item.href === '/tasks' && overdueCount > 0 && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-[#FF453A] text-white shadow-sm">
+                    {overdueCount}
+                  </span>
+                )}
               </Link>
             );
           })}

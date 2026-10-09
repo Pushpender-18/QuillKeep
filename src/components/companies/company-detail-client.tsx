@@ -47,6 +47,9 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import { SerializableReminder } from '@/lib/reminders';
+import { CompanyRemindersCard } from '@/components/companies/company-reminders-card';
+
 export interface DetailContact {
   id: string;
   name: string;
@@ -83,6 +86,7 @@ export interface CompanyDetailData {
   createdAt: string;
   contacts: DetailContact[];
   historyLogs: HistoryLogEntry[];
+  reminders: SerializableReminder[];
 }
 
 export interface CompanyDetailClientProps {
@@ -593,6 +597,17 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* LEFT COLUMN (Remarks Placeholder & Deals - 7 Cols) */}
         <div className="lg:col-span-7 flex flex-col gap-6">
+          {/* Company Reminders Card */}
+          <CompanyRemindersCard
+            companyId={company.id}
+            companyName={company.name}
+            isArchived={company.isArchived}
+            reminders={company.reminders || []}
+            companies={[{ id: company.id, name: company.name }]}
+            profiles={profiles}
+            currentUserId={currentUserId}
+          />
+
           {/* Remarks Section Placeholder */}
           <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
             <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">

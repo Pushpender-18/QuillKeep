@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { convertBigInts } from '@/lib/utils';
 import { notFound } from 'next/navigation';
 import { CompanyDetailClient } from '@/components/companies/company-detail-client';
+import { getOpenReminders } from '@/lib/reminders';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -35,6 +36,8 @@ export default async function CompanyDetailPage({ params }: PageProps) {
   if (!rawCompany) {
     notFound();
   }
+
+  const openReminders = await getOpenReminders({ scope: 'all', userId: user.id, companyId: id });
 
   const cleanCompany = convertBigInts(rawCompany);
   const cleanContacts = convertBigInts(rawContacts);
@@ -98,6 +101,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
         createdAt: String(h.createdAt),
       };
     }),
+    reminders: openReminders,
   };
 
   const activeProfilesList = cleanProfiles
