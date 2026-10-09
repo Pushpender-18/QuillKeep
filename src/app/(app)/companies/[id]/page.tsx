@@ -4,6 +4,7 @@ import { convertBigInts } from '@/lib/utils';
 import { notFound } from 'next/navigation';
 import { CompanyDetailClient } from '@/components/companies/company-detail-client';
 import { getOpenReminders } from '@/lib/reminders';
+import { getRemarksForCompany } from '@/lib/remarks';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -38,6 +39,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
   }
 
   const openReminders = await getOpenReminders({ scope: 'all', userId: user.id, companyId: id });
+  const remarksData = await getRemarksForCompany({ companyId: id, limit: 20 });
 
   const cleanCompany = convertBigInts(rawCompany);
   const cleanContacts = convertBigInts(rawContacts);
@@ -130,6 +132,8 @@ export default async function CompanyDetailPage({ params }: PageProps) {
       profiles={activeProfilesList}
       profileNameMap={profileNameMap}
       currentUserId={user.id}
+      initialRemarks={remarksData.remarks}
+      remarksTotalCount={remarksData.totalCount}
     />
   );
 }

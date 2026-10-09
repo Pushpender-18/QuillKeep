@@ -49,6 +49,10 @@ import {
 
 import { SerializableReminder } from '@/lib/reminders';
 import { CompanyRemindersCard } from '@/components/companies/company-reminders-card';
+import { SerializableRemark } from '@/lib/remarks';
+import { RemarksSection } from '@/components/remarks/remarks-section';
+import { PresenceProvider } from '@/components/presence/presence-context';
+import { PresenceIndicator } from '@/components/presence/presence-indicator';
 
 export interface DetailContact {
   id: string;
@@ -96,6 +100,8 @@ export interface CompanyDetailClientProps {
   profiles: ProfileOption[];
   profileNameMap: Record<string, string>;
   currentUserId: string;
+  initialRemarks: SerializableRemark[];
+  remarksTotalCount: number;
 }
 
 export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
@@ -105,6 +111,8 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
   profiles,
   profileNameMap,
   currentUserId,
+  initialRemarks,
+  remarksTotalCount,
 }) => {
   const router = useRouter();
 
@@ -384,248 +392,249 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto pb-12">
-      {toastMessage && (
-        <Toast
-          type={toastMessage.type}
-          message={toastMessage.msg}
-          isOpen={Boolean(toastMessage)}
-          onClose={() => setToastMessage(null)}
-        />
-      )}
+    <PresenceProvider
+      companyId={company.id}
+      currentUserId={currentUserId}
+      currentUserName={profileNameMap[currentUserId] || 'Teammate'}
+    >
+      <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto pb-12">
+        {toastMessage && (
+          <Toast
+            type={toastMessage.type}
+            message={toastMessage.msg}
+            isOpen={Boolean(toastMessage)}
+            onClose={() => setToastMessage(null)}
+          />
+        )}
 
-      {/* Top Breadcrumb & Navigation Header */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/companies"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8E8E93] hover:text-white transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          <span>Back to Companies</span>
-        </Link>
-      </div>
-
-      {/* Archive Warning Banner */}
-      {company.isArchived && (
-        <div className="p-4 rounded-xl bg-[#FF9F0A]/10 border border-[#FF9F0A]/30 text-white flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-5 h-5 text-[#FF9F0A] shrink-0" />
-            <div>
-              <h4 className="text-sm font-semibold text-[#FF9F0A]">This company is archived</h4>
-              <p className="text-xs text-[#8E8E93]">
-                Reason: {company.archiveReason || 'No reason specified'}. Editing actions are disabled while archived.
-              </p>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            onClick={handleRestore}
-            disabled={restoreLoading}
-            className="bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white shrink-0"
+        {/* Top Breadcrumb & Navigation Header */}
+        <div className="flex items-center justify-between">
+          <Link
+            href="/companies"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8E8E93] hover:text-white transition-colors group"
           >
-            <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-            {restoreLoading ? 'Restoring...' : 'Restore Company'}
-          </Button>
-        </div>
-      )}
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to Companies</span>
+          </Link>
 
-      {/* Header Banner Surface */}
-      <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#0A84FF]/15 border border-[#0A84FF]/30 flex items-center justify-center text-[#0A84FF] shrink-0 shadow-sm font-bold text-xl">
-            {company.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-semibold text-white tracking-tight">{company.name}</h1>
-              {company.isArchived && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/70 border border-white/20">
-                  Archived
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4 text-xs text-[#8E8E93] flex-wrap">
-              {company.location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5" />
-                  {company.location}
-                </span>
-              )}
-              <span>Added {formatAuditDateTime(company.createdAt)}</span>
-            </div>
-          </div>
+          {/* Presence Collision Indicator */}
+          <PresenceIndicator />
         </div>
 
-        {/* Header Controls: Status Dropdown, Priority Tag, Assignee, Actions */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Status Dropdown Pill */}
-          <div className="relative" ref={statusRef}>
-            <button
-              type="button"
-              disabled={company.isArchived || statusLoading}
-              onClick={() => !company.isArchived && setIsStatusDropdownOpen(!isStatusDropdownOpen)}
-              className="flex items-center gap-2 bg-[#1C1C1F] hover:bg-[#26262A] px-3.5 py-2 rounded-full border border-white/10 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        {/* Archive Warning Banner */}
+        {company.isArchived && (
+          <div className="p-4 rounded-xl bg-[#FF9F0A]/10 border border-[#FF9F0A]/30 text-white flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-[#FF9F0A] shrink-0" />
+              <div>
+                <h4 className="text-sm font-semibold text-[#FF9F0A]">This company is archived</h4>
+                <p className="text-xs text-[#8E8E93]">
+                  Reason: {company.archiveReason || 'No reason specified'}. Editing actions are disabled while archived.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleRestore}
+              disabled={restoreLoading}
+              className="bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white shrink-0"
             >
-              <StatusPill status={currentStatus} />
-              <ChevronDown className="w-3.5 h-3.5 text-[#8E8E93]" />
-            </button>
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+              {restoreLoading ? 'Restoring...' : 'Restore Company'}
+            </Button>
+          </div>
+        )}
 
-            {isStatusDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 bg-[#161618] border border-white/10 rounded-xl shadow-2xl p-1.5 w-48 flex flex-col gap-1">
-                {(['new', 'contacted', 'contact_later', 'meeting_scheduled', 'not_interested'] as LeadStatus[]).map(
-                  (st) => (
+        {/* Header Banner Surface */}
+        <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-[#0A84FF]/15 border border-[#0A84FF]/30 flex items-center justify-center text-[#0A84FF] shrink-0 shadow-sm font-bold text-xl">
+              {company.name.charAt(0).toUpperCase()}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl font-semibold text-white tracking-tight">{company.name}</h1>
+                {company.isArchived && (
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/70 border border-white/20">
+                    Archived
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 text-xs text-[#8E8E93] flex-wrap">
+                {company.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {company.location}
+                  </span>
+                )}
+                <span>Added {formatAuditDateTime(company.createdAt)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Header Controls: Status Dropdown, Priority Tag, Assignee, Actions */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Status Dropdown Pill */}
+            <div className="relative" ref={statusRef}>
+              <button
+                type="button"
+                disabled={company.isArchived || statusLoading}
+                onClick={() => !company.isArchived && setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                className="flex items-center gap-2 bg-[#1C1C1F] hover:bg-[#26262A] px-3.5 py-2 rounded-full border border-white/10 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <StatusPill status={currentStatus} />
+                <ChevronDown className="w-3.5 h-3.5 text-[#8E8E93]" />
+              </button>
+
+              {isStatusDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 bg-[#161618] border border-white/10 rounded-xl shadow-2xl p-1.5 w-48 flex flex-col gap-1">
+                  {(['new', 'contacted', 'contact_later', 'meeting_scheduled', 'not_interested'] as LeadStatus[]).map(
+                    (st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => handleSelectStatus(st)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors text-left ${
+                          currentStatus === st
+                            ? 'bg-[#0A84FF]/20 text-white font-semibold'
+                            : 'text-[#E4E4E7] hover:bg-white/[0.08]'
+                        }`}
+                      >
+                        <StatusPill status={st} />
+                        {currentStatus === st && <CheckCircle2 className="w-4 h-4 text-[#0A84FF]" />}
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Priority Selector Tag */}
+            <div className="relative" ref={priorityRef}>
+              <button
+                type="button"
+                disabled={company.isArchived}
+                onClick={() => !company.isArchived && setIsPriorityDropdownOpen(!isPriorityDropdownOpen)}
+                className="flex items-center gap-1.5 bg-[#1C1C1F] hover:bg-[#26262A] px-3 py-2 rounded-full border border-white/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <PriorityTag priority={company.priority} />
+                <ChevronDown className="w-3.5 h-3.5 text-[#8E8E93]" />
+              </button>
+
+              {isPriorityDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 bg-[#161618] border border-white/10 rounded-xl shadow-2xl p-1 w-36 flex flex-col gap-1">
+                  {(['low', 'medium', 'high'] as PriorityLevel[]).map((p) => (
                     <button
-                      key={st}
+                      key={p}
                       type="button"
-                      onClick={() => handleSelectStatus(st)}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors text-left ${
-                        currentStatus === st
-                          ? 'bg-[#0A84FF]/20 text-white font-semibold'
-                          : 'text-[#E4E4E7] hover:bg-white/[0.08]'
+                      onClick={() => handleSelectPriority(p)}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                        company.priority === p ? 'bg-white/10 font-semibold' : 'hover:bg-white/[0.08]'
                       }`}
                     >
-                      <StatusPill status={st} />
-                      {currentStatus === st && <CheckCircle2 className="w-4 h-4 text-[#0A84FF]" />}
+                      <PriorityTag priority={p} />
+                      {company.priority === p && <CheckCircle2 className="w-4 h-4 text-[#0A84FF]" />}
                     </button>
-                  )
-                )}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Assigned To Selector */}
+            <div className="w-44">
+              <SelectWithAvatars
+                options={profiles}
+                value={company.assignedTo || null}
+                onChange={handleSelectAssignee}
+                disabled={company.isArchived}
+              />
+            </div>
+
+            {/* Actions Dropdown Menu */}
+            <div className="relative" ref={actionsRef}>
+              <button
+                type="button"
+                onClick={() => setIsActionsOpen(!isActionsOpen)}
+                className="p-2 rounded-xl bg-[#1C1C1F] hover:bg-[#26262A] border border-white/10 text-[#8E8E93] hover:text-white transition-colors cursor-pointer"
+                title="More actions"
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+
+              {isActionsOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 bg-[#161618] border border-white/10 rounded-xl shadow-2xl p-1.5 w-40 flex flex-col gap-1">
+                  {!company.isArchived && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionsOpen(false);
+                        setIsEditModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#E4E4E7] hover:bg-white/[0.08] hover:text-white transition-colors"
+                    >
+                      <Edit2 className="w-3.5 h-3.5 text-[#0A84FF]" />
+                      <span>Edit Company</span>
+                    </button>
+                  )}
+
+                  {company.isArchived ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionsOpen(false);
+                        handleRestore();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#0A84FF] hover:bg-[#0A84FF]/10 transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Restore</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsActionsOpen(false);
+                        setIsArchiveDialogOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#FF453A] hover:bg-[#FF453A]/10 transition-colors"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                      <span>Archive</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+        </div>
 
-          {/* Priority Selector Tag */}
-          <div className="relative" ref={priorityRef}>
-            <button
-              type="button"
-              disabled={company.isArchived}
-              onClick={() => !company.isArchived && setIsPriorityDropdownOpen(!isPriorityDropdownOpen)}
-              className="flex items-center gap-1.5 bg-[#1C1C1F] hover:bg-[#26262A] px-3 py-2 rounded-full border border-white/10 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <PriorityTag priority={company.priority} />
-              <ChevronDown className="w-3.5 h-3.5 text-[#8E8E93]" />
-            </button>
+        {/* Main Grid Workspace */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* LEFT COLUMN (Reminders & Remarks - 7 Cols) */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+            {/* Company Reminders Card */}
+            <CompanyRemindersCard
+              companyId={company.id}
+              companyName={company.name}
+              isArchived={company.isArchived}
+              reminders={company.reminders || []}
+              companies={[{ id: company.id, name: company.name }]}
+              profiles={profiles}
+              currentUserId={currentUserId}
+            />
 
-            {isPriorityDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 bg-[#161618] border border-white/10 rounded-xl shadow-2xl p-1 w-36 flex flex-col gap-1">
-                {(['low', 'medium', 'high'] as PriorityLevel[]).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => handleSelectPriority(p)}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                      company.priority === p ? 'bg-white/10 font-semibold' : 'hover:bg-white/[0.08]'
-                    }`}
-                  >
-                    <PriorityTag priority={p} />
-                    {company.priority === p && <CheckCircle2 className="w-4 h-4 text-[#0A84FF]" />}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Assigned To Selector */}
-          <div className="w-44">
-            <SelectWithAvatars
-              options={profiles}
-              value={company.assignedTo || null}
-              onChange={handleSelectAssignee}
-              disabled={company.isArchived}
+            {/* Remarks Section */}
+            <RemarksSection
+              companyId={company.id}
+              isArchived={company.isArchived}
+              initialRemarks={initialRemarks}
+              totalCount={remarksTotalCount}
+              teammates={profiles}
+              currentUserId={currentUserId}
+              profileNameMap={profileNameMap}
             />
           </div>
-
-          {/* Actions Dropdown Menu */}
-          <div className="relative" ref={actionsRef}>
-            <button
-              type="button"
-              onClick={() => setIsActionsOpen(!isActionsOpen)}
-              className="p-2 rounded-xl bg-[#1C1C1F] hover:bg-[#26262A] border border-white/10 text-[#8E8E93] hover:text-white transition-colors cursor-pointer"
-              title="More actions"
-            >
-              <MoreVertical className="w-4 h-4" />
-            </button>
-
-            {isActionsOpen && (
-              <div className="absolute right-0 top-full mt-2 z-50 bg-[#161618] border border-white/10 rounded-xl shadow-2xl p-1.5 w-40 flex flex-col gap-1">
-                {!company.isArchived && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsActionsOpen(false);
-                      setIsEditModalOpen(true);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#E4E4E7] hover:bg-white/[0.08] hover:text-white transition-colors"
-                  >
-                    <Edit2 className="w-3.5 h-3.5 text-[#0A84FF]" />
-                    <span>Edit Company</span>
-                  </button>
-                )}
-
-                {company.isArchived ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsActionsOpen(false);
-                      handleRestore();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#0A84FF] hover:bg-[#0A84FF]/10 transition-colors"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Restore</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsActionsOpen(false);
-                      setIsArchiveDialogOpen(true);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-[#FF453A] hover:bg-[#FF453A]/10 transition-colors"
-                  >
-                    <Archive className="w-3.5 h-3.5" />
-                    <span>Archive</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Main Grid Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* LEFT COLUMN (Remarks Placeholder & Deals - 7 Cols) */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
-          {/* Company Reminders Card */}
-          <CompanyRemindersCard
-            companyId={company.id}
-            companyName={company.name}
-            isArchived={company.isArchived}
-            reminders={company.reminders || []}
-            companies={[{ id: company.id, name: company.name }]}
-            profiles={profiles}
-            currentUserId={currentUserId}
-          />
-
-          {/* Remarks Section Placeholder */}
-          <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-base font-medium text-white">Remarks & Notes</h2>
-              <span className="text-xs text-[#8E8E93]">Internal collaboration</span>
-            </div>
-
-            <div className="py-12 bg-[#121214] border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center text-center p-6">
-              <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#8E8E93] mb-2">
-                <Lock className="w-5 h-5" />
-              </div>
-              <h3 className="text-sm font-semibold text-white">Remarks coming soon</h3>
-              <p className="text-xs text-[#8E8E93] mt-1 max-w-sm">
-                Internal team notes and mention thread features will be available in Phase 3.
-              </p>
-            </div>
-          </div>
-        </div>
 
         {/* RIGHT COLUMN (Info Card, Contacts Card, Audit History Timeline - 5 Cols) */}
         <div className="lg:col-span-5 flex flex-col gap-6">
@@ -865,6 +874,7 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
           loading={deleteContactLoading}
         />
       )}
-    </div>
+      </div>
+    </PresenceProvider>
   );
 };

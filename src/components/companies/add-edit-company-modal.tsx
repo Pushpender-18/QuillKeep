@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { SelectWithAvatars, ProfileOption } from '@/components/ui/select-with-avatars';
 import { ScheduleFollowUpModal } from '@/components/companies/schedule-follow-up-modal';
 import { LeadStatus } from '@/components/ui/status-pill';
-import { Building2, AlertCircle } from 'lucide-react';
+import { usePresence } from '@/components/presence/presence-context';
+import { Building2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { createCompanyAction, updateCompanyAction, checkCompanyNameAction, restoreCompanyAction } from '@/app/actions/companies';
 import { Toast } from '@/components/ui/toast';
 
@@ -40,6 +41,19 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
   currentUserId,
 }) => {
   const isEdit = Boolean(initialData?.id);
+  const presence = usePresence();
+
+  // Track presence editing state when modal is open
+  React.useEffect(() => {
+    if (isOpen && presence?.setEditing) {
+      presence.setEditing(true);
+      return () => {
+        presence.setEditing(false);
+      };
+    }
+  }, [isOpen, presence]);
+
+  const otherEditingUser = presence?.otherUsers.find((u) => u.editing);
 
   // Form states
   const [name, setName] = React.useState('');
@@ -253,6 +267,15 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
             <div className="p-3 rounded-lg bg-[#FF453A]/10 border border-[#FF453A]/30 text-xs text-[#FF453A] flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errors.form}</span>
+            </div>
+          )}
+
+          {otherEditingUser && (
+            <div className="p-3 rounded-lg bg-[#FF9F0A]/10 border border-[#FF9F0A]/30 text-xs text-[#FF9F0A] flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-[#FF9F0A]" />
+              <span>
+                {otherEditingUser.name.split(' ')[0]} is also editing this company. Saving may overwrite their changes.
+              </span>
             </div>
           )}
 
