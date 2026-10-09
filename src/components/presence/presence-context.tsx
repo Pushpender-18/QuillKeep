@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { createClient } from '@/lib/supabase/browser';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface PresenceUser {
   user_id: string;
@@ -34,9 +35,12 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({
 }) => {
   const [isEditing, setIsEditingState] = React.useState(false);
   const [otherUsers, setOtherUsers] = React.useState<PresenceUser[]>([]);
+  
   const isEditingRef = React.useRef(isEditing);
-
   isEditingRef.current = isEditing;
+
+  const channelRef = React.useRef<RealtimeChannel | null>(null);
+  const isSubscribedRef = React.useRef(false);
 
   const setEditing = React.useCallback((editing: boolean) => {
     setIsEditingState(editing);
@@ -48,6 +52,8 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({
     const supabase = createClient();
     const channelName = `company:${companyId}`;
     const channel = supabase.channel(channelName);
+    channelRef.current = channel;
+    isSubscribedRef.current = false;
 
     const syncPresenceState = () => {
       const state = channel.presenceState();
@@ -77,6 +83,7 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({
       .on('presence', { event: 'leave' }, syncPresenceState)
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
+          isSubscribedRef.current = true;
           await channel.track({
             user_id: currentUserId,
             name: currentUserName,
@@ -86,23 +93,22 @@ export const PresenceProvider: React.FC<PresenceProviderProps> = ({
       });
 
     return () => {
+      isSubscribedRef.current = false;
+      channelRef.current = null;
       supabase.removeChannel(channel);
     };
   }, [companyId, currentUserId, currentUserName]);
 
-  // Track state when local isEditing changes
+  // Track state when local isEditing changes on the active channel
   React.useEffect(() => {
-    if (!companyId || !currentUserId) return;
-
-    const supabase = createClient();
-    const channel = supabase.channel(`company:${companyId}`);
-
-    channel.track({
-      user_id: currentUserId,
-      name: currentUserName,
-      editing: isEditing,
-    });
-  }, [isEditing, companyId, currentUserId, currentUserName]);
+    if (channelRef.current && isSubscribedRef.current) {
+      channelRef.current.track({
+        user_id: currentUserId,
+        name: currentUserName,
+        editing: isEditing,
+      });
+    }
+  }, [isEditing, currentUserId, currentUserName]);
 
   return (
     <PresenceContext.Provider value={{ isEditing, setEditing, otherUsers }}>
