@@ -1,130 +1,155 @@
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { convertBigInts } from '@/lib/utils';
-import { DataTable, Column } from '@/components/ui/data-table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { StatusPill } from '@/components/ui/status-pill';
-import { PriorityTag } from '@/components/ui/priority-tag';
-import { EmptyState } from '@/components/ui/empty-state';
-import { Plus, Search, Building2 } from 'lucide-react';
-import Link from 'next/link';
+import { CompaniesListClient, CompanyListRow } from '@/components/companies/companies-list-client';
 
-interface CompanyRow {
-  id: string;
-  name: string;
-  status: string;
-  priority: string;
-  location?: string | null;
-  createdAt: string;
+interface PageProps {
+  searchParams: Promise<{
+    view?: string;
+    scope?: string;
+    sort?: string;
+    dir?: string;
+    page?: string;
+  }>;
 }
 
-export default async function CompaniesPage() {
+export default async function CompaniesPage({ searchParams }: PageProps) {
   const user = await getCurrentUser();
+  const params = await searchParams;
 
-  // Load companies from Prisma database
+  const view = (params.view === 'archived' ? 'archived' : 'active') as 'active' | 'archived';
+  const scope = (params.scope === 'all' ? 'all' : 'my') as 'my' | 'all';
+  const sort = (params.sort === 'last_contact' || params.sort === 'priority' ? params.sort : 'name') as 'name' | 'last_contact' | 'priority';
+  const dir = (params.dir === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
+  const page = Math.max(1, parseInt(params.page || '1', 10));
+  const pageSize = 25;
+
+  // Load active metadata: Industries, States, Profiles
+  let rawIndustries: any[] = [];
+  let rawStates: any[] = [];
+  let rawProfiles: any[] = [];
   let rawCompanies: any[] = [];
+
   try {
+    rawIndustries = await prisma.orm.public.Industries.where({ isActive: true }).all();
+    rawStates = await prisma.orm.public.States.where({ isActive: true }).all();
+    rawProfiles = await prisma.orm.public.Profiles.where({ isActive: true }).all();
     rawCompanies = await prisma.orm.public.Companies.all();
-  } catch {
-    rawCompanies = [];
+  } catch (err) {
+    console.error('[COMPANIES_PAGE_FETCH_ERROR]', err);
   }
 
-  const companies: CompanyRow[] = convertBigInts(rawCompanies).map((c: any) => ({
-    id: String(c.id),
-    name: c.name,
-    status: c.status,
-    priority: c.priority,
-    location: c.location,
-    createdAt: String(c.createdAt || ''),
+  const cleanIndustries = convertBigInts(rawIndustries).map((ind: any) => ({
+    id: String(ind.id),
+    name: String(ind.name),
   }));
 
-  const columns: Column<CompanyRow>[] = [
-    {
-      header: 'Company Name',
-      accessorKey: 'name',
-      cell: (row) => (
-        <Link
-          href={`/companies/${row.id}`}
-          className="font-medium text-white hover:text-[#0A84FF] transition-colors"
-        >
-          {row.name}
-        </Link>
-      ),
-    },
-    {
-      header: 'Status',
-      accessorKey: 'status',
-      cell: (row) => <StatusPill status={row.status} />,
-    },
-    {
-      header: 'Priority',
-      accessorKey: 'priority',
-      cell: (row) => <PriorityTag priority={row.priority} />,
-    },
-    {
-      header: 'Location',
-      accessorKey: 'location',
-      cell: (row) => <span className="text-[#8E8E93] text-xs">{row.location || '—'}</span>,
-    },
-    {
-      header: 'Action',
-      cell: (row) => (
-        <Link href={`/companies/${row.id}`}>
-          <Button variant="ghost" size="sm">
-            View Detail
-          </Button>
-        </Link>
-      ),
-    },
-  ];
+  const cleanStates = convertBigInts(rawStates).map((st: any) => ({
+    id: String(st.id),
+    name: String(st.name),
+  }));
+
+  const cleanProfiles = convertBigInts(rawProfiles).map((p: any) => ({
+    id: String(p.id),
+    fullName: String(p.fullName || ''),
+    email: String(p.email || ''),
+  }));
+
+  // Create lookups
+  const industryMap = new Map(cleanIndustries.map((i) => [i.id, i.name]));
+  const profileMap = new Map(cleanProfiles.map((p) => [p.id, p]));
+
+  // Filter companies according to view & scope
+  let filtered = convertBigInts(rawCompanies).filter((c: any) => {
+    // View filter
+    const matchesView = view === 'archived' ? Boolean(c.isArchived) : !c.isArchived;
+    if (!matchesView) return false;
+
+    // Scope filter (My Leads vs All Team)
+    if (scope === 'my') {
+      const assignedToId = c.assignedTo ? String(c.assignedTo) : null;
+      if (assignedToId !== user.id) return false;
+    }
+
+    return true;
+  });
+
+  // Sorting
+  const priorityWeight: Record<string, number> = {
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+
+  filtered.sort((a: any, b: any) => {
+    let result = 0;
+    if (sort === 'priority') {
+      const weightA = priorityWeight[String(a.priority).toLowerCase()] || 0;
+      const weightB = priorityWeight[String(b.priority).toLowerCase()] || 0;
+      result = weightB - weightA; // High to Low by default
+    } else if (sort === 'last_contact') {
+      const timeA = a.lastContactedAt ? new Date(a.lastContactedAt).getTime() : 0;
+      const timeB = b.lastContactedAt ? new Date(b.lastContactedAt).getTime() : 0;
+      result = timeB - timeA; // Most recent first
+    } else {
+      // Name sorting
+      const nameA = String(a.name).trim().toLowerCase();
+      const nameB = String(b.name).trim().toLowerCase();
+      result = nameA.localeCompare(nameB);
+    }
+
+    return dir === 'desc' ? -result : result;
+  });
+
+  // Server-side pagination (25 per page)
+  const totalCount = filtered.length;
+  const startIndex = (page - 1) * pageSize;
+  const paginatedRows = filtered.slice(startIndex, startIndex + pageSize);
+
+  const companies: CompanyListRow[] = paginatedRows.map((c: any) => {
+    const assignedId = c.assignedTo ? String(c.assignedTo) : null;
+    const assignedProfile = assignedId ? profileMap.get(assignedId) || null : null;
+    const indId = c.industryId ? String(c.industryId) : null;
+
+    return {
+      id: String(c.id),
+      name: String(c.name),
+      industryName: indId ? industryMap.get(indId) || null : null,
+      location: c.location ? String(c.location) : null,
+      status: String(c.status),
+      priority: String(c.priority),
+      assignedToProfile: assignedProfile,
+      lastContactedAt: c.lastContactedAt ? String(c.lastContactedAt) : null,
+      isArchived: Boolean(c.isArchived),
+      archiveReason: c.archiveReason ? String(c.archiveReason) : null,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
-        <div>
-          <h1 className="text-2xl font-light text-white tracking-tight">Companies</h1>
-          <p className="text-sm text-[#8E8E93] mt-0.5">
-            Manage lead pipeline, organization profiles, and status updates
-          </p>
-        </div>
-        <Button className="shrink-0">
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add Company
-        </Button>
+      {/* Page Header */}
+      <div className="flex flex-col gap-1 pb-4 border-b border-white/[0.08]">
+        <h1 className="text-2xl font-semibold text-white tracking-tight">Companies</h1>
+        <p className="text-xs text-[#8E8E93]">
+          Lead pipeline and company directory
+        </p>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="w-full sm:w-72">
-          <Input
-            placeholder="Search companies..."
-            icon={<Search className="w-4 h-4" />}
-          />
-        </div>
-      </div>
-
-      {/* Companies Table or Empty State */}
-      {companies.length === 0 ? (
-        <EmptyState
-          icon={<Building2 className="w-6 h-6 text-[#0A84FF]" />}
-          title="No companies found"
-          description="Your company lead database is currently empty. Add your first lead to start tracking."
-          action={
-            <Button size="sm">
-              <Plus className="w-4 h-4 mr-1.5" />
-              Add Company
-            </Button>
-          }
-        />
-      ) : (
-        <DataTable
-          columns={columns}
-          data={companies}
-          keyExtractor={(row) => row.id}
-        />
-      )}
+      {/* Main Companies List Client View */}
+      <CompaniesListClient
+        companies={companies}
+        totalCount={totalCount}
+        currentPage={page}
+        pageSize={pageSize}
+        currentView={view}
+        currentScope={scope}
+        currentSort={sort}
+        currentDir={dir}
+        industries={cleanIndustries}
+        states={cleanStates}
+        profiles={cleanProfiles}
+        currentUserId={user.id}
+      />
     </div>
   );
 }

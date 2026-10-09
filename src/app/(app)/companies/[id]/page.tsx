@@ -1,12 +1,8 @@
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { convertBigInts } from '@/lib/utils';
-import { StatusPill } from '@/components/ui/status-pill';
-import { PriorityTag } from '@/components/ui/priority-tag';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building2, MapPin, Calendar, Clock, UserCheck } from 'lucide-react';
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { CompanyDetailClient } from '@/components/companies/company-detail-client';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -16,113 +12,120 @@ export default async function CompanyDetailPage({ params }: PageProps) {
   const user = await getCurrentUser();
   const { id } = await params;
 
-  let company: any = null;
+  let rawCompany: any = null;
+  let rawContacts: any[] = [];
+  let rawHistoryLogs: any[] = [];
+  let rawIndustries: any[] = [];
+  let rawStates: any[] = [];
+  let rawProfiles: any[] = [];
+
   try {
-    company = await prisma.orm.public.Companies.where({ id }).first();
-  } catch {
-    company = null;
+    rawCompany = await prisma.orm.public.Companies.where({ id }).first();
+    if (rawCompany) {
+      rawContacts = await prisma.orm.public.Contacts.where({ companyId: id }).all();
+      rawHistoryLogs = await prisma.orm.public.HistoryLog.where({ companyId: id }).all();
+    }
+    rawIndustries = await prisma.orm.public.Industries.where({ isActive: true }).all();
+    rawStates = await prisma.orm.public.States.where({ isActive: true }).all();
+    rawProfiles = await prisma.orm.public.Profiles.all();
+  } catch (err) {
+    console.error('[COMPANY_DETAIL_PAGE_ERROR]', err);
   }
 
-  const cleanCompany = company ? convertBigInts(company) : null;
+  if (!rawCompany) {
+    notFound();
+  }
+
+  const cleanCompany = convertBigInts(rawCompany);
+  const cleanContacts = convertBigInts(rawContacts);
+  const cleanHistory = convertBigInts(rawHistoryLogs);
+  const cleanIndustries = convertBigInts(rawIndustries);
+  const cleanStates = convertBigInts(rawStates);
+  const cleanProfiles = convertBigInts(rawProfiles);
+
+  const industryMap = new Map(cleanIndustries.map((i: any) => [String(i.id), String(i.name)]));
+  const stateMap = new Map(cleanStates.map((s: any) => [String(s.id), String(s.name)]));
+  const profileNameMap: Record<string, string> = {};
+  
+  cleanProfiles.forEach((p: any) => {
+    profileNameMap[String(p.id)] = String(p.fullName || p.email || 'User');
+  });
+
+  // Sort contacts: Primary first, then by createdAt asc
+  cleanContacts.sort((a: any, b: any) => {
+    if (a.isPrimary && !b.isPrimary) return -1;
+    if (!a.isPrimary && b.isPrimary) return 1;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
+
+  // Sort history logs: newest first
+  cleanHistory.sort((a: any, b: any) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  const companyData = {
+    id: String(cleanCompany.id),
+    name: String(cleanCompany.name),
+    industryId: cleanCompany.industryId ? String(cleanCompany.industryId) : null,
+    industryName: cleanCompany.industryId ? industryMap.get(String(cleanCompany.industryId)) || null : null,
+    stateId: cleanCompany.stateId ? String(cleanCompany.stateId) : null,
+    stateName: cleanCompany.stateId ? stateMap.get(String(cleanCompany.stateId)) || null : null,
+    location: cleanCompany.location ? String(cleanCompany.location) : null,
+    status: cleanCompany.status,
+    priority: cleanCompany.priority,
+    assignedTo: cleanCompany.assignedTo ? String(cleanCompany.assignedTo) : null,
+    isArchived: Boolean(cleanCompany.isArchived),
+    archiveReason: cleanCompany.archiveReason ? String(cleanCompany.archiveReason) : null,
+    createdAt: String(cleanCompany.createdAt),
+    contacts: cleanContacts.map((c: any) => ({
+      id: String(c.id),
+      name: String(c.name),
+      jobTitle: c.jobTitle ? String(c.jobTitle) : null,
+      email: c.email ? String(c.email) : null,
+      phone: c.phone ? String(c.phone) : null,
+      isPrimary: Boolean(c.isPrimary),
+    })),
+    historyLogs: cleanHistory.map((h: any) => {
+      const actorIdStr = h.actorId ? String(h.actorId) : null;
+      return {
+        id: String(h.id),
+        action: String(h.action),
+        actorId: actorIdStr,
+        actorName: actorIdStr ? profileNameMap[actorIdStr] || 'User' : 'System',
+        oldValue: h.oldValue ? String(h.oldValue) : null,
+        newValue: h.newValue ? String(h.newValue) : null,
+        details: h.details || {},
+        createdAt: String(h.createdAt),
+      };
+    }),
+  };
+
+  const activeProfilesList = cleanProfiles
+    .filter((p: any) => p.isActive !== false)
+    .map((p: any) => ({
+      id: String(p.id),
+      fullName: String(p.fullName || ''),
+      email: String(p.email || ''),
+    }));
+
+  const activeIndustriesList = cleanIndustries.map((i: any) => ({
+    id: String(i.id),
+    name: String(i.name),
+  }));
+
+  const activeStatesList = cleanStates.map((s: any) => ({
+    id: String(s.id),
+    name: String(s.name),
+  }));
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Back Button & Top Action Header */}
-      <div className="flex items-center justify-between">
-        <Link
-          href="/companies"
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#8E8E93] hover:text-white transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Companies
-        </Link>
-      </div>
-
-      {/* Header Profile Section */}
-      <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-[#0A84FF]/15 border border-[#0A84FF]/30 flex items-center justify-center text-[#0A84FF] shrink-0 shadow-sm">
-            <Building2 className="w-7 h-7" />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-light text-white tracking-tight">
-                {cleanCompany ? cleanCompany.name : 'Company Detail'}
-              </h1>
-              <StatusPill status={cleanCompany ? cleanCompany.status : 'new'} />
-              <PriorityTag priority={cleanCompany ? cleanCompany.priority : 'medium'} />
-            </div>
-            <div className="flex items-center gap-4 text-xs text-[#8E8E93] flex-wrap">
-              <span className="flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-[#8E8E93]" />
-                {cleanCompany?.location || 'Location not set'}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-[#8E8E93]" />
-                Added {cleanCompany?.createdAt ? String(cleanCompany.createdAt).slice(0, 10) : 'Recently'}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm">
-            Update Status
-          </Button>
-          <Button size="sm">
-            Schedule Follow-up
-          </Button>
-        </div>
-      </div>
-
-      {/* Grid Layout: Details & Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Overview Details */}
-        <div className="lg:col-span-1 bg-[#161618] border border-white/[0.08] rounded-2xl p-6 flex flex-col gap-5 shadow-xl">
-          <h2 className="text-base font-medium text-white border-b border-white/[0.08] pb-3">
-            Lead Metadata
-          </h2>
-
-          <div className="flex flex-col gap-4 text-sm">
-            <div>
-              <span className="text-xs uppercase tracking-wider text-[#8E8E93] font-medium block mb-1">
-                ID
-              </span>
-              <span className="text-xs font-mono text-white/80">{id}</span>
-            </div>
-
-            <div>
-              <span className="text-xs uppercase tracking-wider text-[#8E8E93] font-medium block mb-1">
-                Assigned Owner
-              </span>
-              <div className="flex items-center gap-2 text-white">
-                <UserCheck className="w-4 h-4 text-[#0A84FF]" />
-                <span>{user.fullName || user.email}</span>
-              </div>
-            </div>
-
-            <div>
-              <span className="text-xs uppercase tracking-wider text-[#8E8E93] font-medium block mb-1">
-                Last Contacted
-              </span>
-              <div className="flex items-center gap-2 text-[#8E8E93]">
-                <Clock className="w-4 h-4" />
-                <span>{cleanCompany?.lastContactedAt ? String(cleanCompany.lastContactedAt) : 'Never'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column: Activity / History */}
-        <div className="lg:col-span-2 bg-[#161618] border border-white/[0.08] rounded-2xl p-6 flex flex-col gap-4 shadow-xl">
-          <h2 className="text-base font-medium text-white border-b border-white/[0.08] pb-3">
-            Activity & Remarks
-          </h2>
-          <div className="py-12 text-center text-[#8E8E93] text-sm">
-            No activity remarks recorded yet for this company.
-          </div>
-        </div>
-      </div>
-    </div>
+    <CompanyDetailClient
+      company={companyData}
+      industries={activeIndustriesList}
+      states={activeStatesList}
+      profiles={activeProfilesList}
+      profileNameMap={profileNameMap}
+      currentUserId={user.id}
+    />
   );
 }
