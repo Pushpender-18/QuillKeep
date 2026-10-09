@@ -71,6 +71,17 @@ export const TaskHubClient: React.FC<TaskHubClientProps> = ({
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  // Support ?new=1 param to automatically open Add Reminder modal
+  React.useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      setIsAddModalOpen(true);
+      setModalFocusField('general');
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('new');
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  }, [searchParams, pathname, router]);
+
   // Month navigation logic
   const handlePrevMonth = () => {
     const [y, m] = currentMonth.split('-').map(Number);

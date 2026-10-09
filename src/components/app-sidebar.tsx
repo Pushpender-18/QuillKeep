@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/avatar';
 import Image from 'next/image';
 import { signOutAction } from '@/app/login/actions';
-import { LayoutDashboard, Building2, CheckSquare, LogOut } from 'lucide-react';
+import { LayoutDashboard, Building2, CheckSquare, LogOut, Search } from 'lucide-react';
 import type { ProfileUser } from '@/lib/auth';
 
 interface SidebarProps {
@@ -40,6 +40,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, overdueCount = 0 }) => {
               priority
             />
           </div>
+        </div>
+
+        {/* Quick Search Button (Command Palette Trigger) */}
+        <div className="px-2">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#201F20]/60 border border-white/[0.08] text-[#8E8E93] hover:text-white hover:bg-[#201F20] transition-colors group cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <Search className="w-4 h-4 text-[#8E8E93] group-hover:text-white transition-colors" />
+              <span className="text-xs font-medium">Quick Find</span>
+            </div>
+            <kbd className="px-1.5 py-0.5 rounded bg-white/[0.08] text-[10px] font-mono text-[#8E8E93] group-hover:text-white transition-colors">
+              ⌘K
+            </kbd>
+          </button>
         </div>
 
         {/* Navigation Items */}

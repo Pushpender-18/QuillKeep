@@ -7,9 +7,11 @@ import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { SelectWithAvatars, ProfileOption } from '@/components/ui/select-with-avatars';
 import { ScheduleFollowUpModal } from '@/components/companies/schedule-follow-up-modal';
+import { AddCustomFieldModal } from '@/components/companies/custom-field-modal';
+import { CustomFieldDefinition } from '@/lib/custom-fields';
 import { LeadStatus } from '@/components/ui/status-pill';
 import { usePresence } from '@/components/presence/presence-context';
-import { Building2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Building2, AlertCircle, AlertTriangle, Plus, Settings2 } from 'lucide-react';
 import { createCompanyAction, updateCompanyAction, checkCompanyNameAction, restoreCompanyAction } from '@/app/actions/companies';
 import { Toast } from '@/components/ui/toast';
 
@@ -24,11 +26,14 @@ export interface AddEditCompanyModalProps {
     location?: string | null;
     priority: string;
     assignedTo?: string | null;
+    customFields?: Record<string, any> | null;
   } | null;
   industries: { id: string; name: string }[];
   states: { id: string; name: string }[];
   profiles: ProfileOption[];
+  customFieldDefinitions?: CustomFieldDefinition[];
   currentUserId: string;
+  onOpenManageCustomFields?: () => void;
 }
 
 export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
@@ -38,7 +43,9 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
   industries,
   states,
   profiles,
+  customFieldDefinitions = [],
   currentUserId,
+  onOpenManageCustomFields,
 }) => {
   const isEdit = Boolean(initialData?.id);
   const presence = usePresence();
@@ -55,6 +62,13 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
 
   const otherEditingUser = presence?.otherUsers.find((u) => u.editing);
 
+  // Local definitions list (so new field creation updates modal immediately)
+  const [localDefs, setLocalDefs] = React.useState<CustomFieldDefinition[]>(customFieldDefinitions);
+
+  React.useEffect(() => {
+    setLocalDefs(customFieldDefinitions);
+  }, [customFieldDefinitions]);
+
   // Form states
   const [name, setName] = React.useState('');
   const [industryId, setIndustryId] = React.useState('');
@@ -66,6 +80,10 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
   const [assignedTo, setAssignedTo] = React.useState<string>(currentUserId);
   const [priority, setPriority] = React.useState<string>('medium');
   const [status, setStatus] = React.useState<LeadStatus>('new');
+  const [customFieldsState, setCustomFieldsState] = React.useState<Record<string, any>>({});
+
+  // Add Custom Field popup
+  const [isAddCustomFieldOpen, setIsAddCustomFieldOpen] = React.useState(false);
 
   // Multi-step for status follow-up if contact_later or meeting_scheduled chosen on creation
   const [showScheduleModal, setShowScheduleModal] = React.useState(false);
@@ -87,6 +105,7 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
         setAssignedTo(initialData.assignedTo || currentUserId);
         setPriority(initialData.priority?.toLowerCase() || 'medium');
         setStatus('new');
+        setCustomFieldsState(initialData.customFields || {});
       } else {
         setName('');
         setIndustryId(industries[0]?.id || '');
@@ -98,6 +117,7 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
         setAssignedTo(currentUserId);
         setPriority('medium');
         setStatus('new');
+        setCustomFieldsState({});
       }
       setErrors({});
       setArchivedMatchId(null);
@@ -139,88 +159,92 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
         return;
       }
 
-      if (isEdit && initialData?.id) {
-        // Edit action
-        const res = await updateCompanyAction(initialData.id, {
+      // If creating a company and chosen status is contact_later or meeting_scheduled, show follow-up modal
+      if (!isEdit && (status === 'contact_later' || status === 'meeting_scheduled')) {
+        setPendingCreationPayload({
           name: name.trim(),
           industryId: industryId || null,
           stateId: stateId || null,
           location: location.trim() || null,
+          assignedTo: assignedTo || currentUserId,
           priority,
-          assignedTo: assignedTo || null,
-        });
-
-        if (!res.success) {
-          setErrors({ form: res.error || 'Failed to update company' });
-        } else {
-          setToastMessage({ type: 'success', msg: 'Company updated successfully' });
-          onClose();
-        }
-      } else {
-        // Create action
-        const payload = {
-          name: name.trim(),
-          industryId: industryId || null,
-          stateId: stateId || null,
-          location: location.trim() || null,
           contactName: contactName.trim() || null,
           contactEmail: contactEmail.trim() || null,
           contactPhone: contactPhone.trim() || null,
-          assignedTo: assignedTo || null,
-          priority,
           initialStatus: status,
-        };
+          customFields: customFieldsState,
+        });
+        setLoading(false);
+        setShowScheduleModal(true);
+        return;
+      }
 
-        if (status === 'contact_later' || status === 'meeting_scheduled') {
-          // Open follow-up schedule step modal
-          setPendingCreationPayload(payload);
-          setShowScheduleModal(true);
-          setLoading(false);
-          return;
-        }
+      // Execute Save Action
+      let res: { success: boolean; error?: string };
+      if (isEdit && initialData?.id) {
+        res = await updateCompanyAction(initialData.id, {
+          name: name.trim(),
+          industryId: industryId || null,
+          stateId: stateId || null,
+          location: location.trim() || null,
+          assignedTo: assignedTo || currentUserId,
+          priority,
+          customFields: customFieldsState,
+        });
+      } else {
+        res = await createCompanyAction({
+          name: name.trim(),
+          industryId: industryId || null,
+          stateId: stateId || null,
+          location: location.trim() || null,
+          assignedTo: assignedTo || currentUserId,
+          priority,
+          contactName: contactName.trim() || null,
+          contactEmail: contactEmail.trim() || null,
+          contactPhone: contactPhone.trim() || null,
+          initialStatus: status,
+          customFields: customFieldsState,
+        });
+      }
 
-        // Standard creation (status = new, contacted, not_interested)
-        const res = await createCompanyAction(payload);
-        if (!res.success) {
-          setErrors({ form: res.error || 'Failed to create company' });
-        } else {
-          setToastMessage({ type: 'success', msg: 'Company created successfully' });
-          onClose();
-        }
+      setLoading(false);
+
+      if (res.success) {
+        setToastMessage({
+          type: 'success',
+          msg: isEdit ? 'Company updated successfully' : 'Company added successfully',
+        });
+        onClose();
+      } else {
+        setErrors({ form: res.error || 'Failed to save company' });
       }
     } catch (err: any) {
-      setErrors({ form: err?.message || 'An unexpected error occurred' });
-    } finally {
       setLoading(false);
+      setErrors({ form: err?.message || 'An unexpected error occurred' });
     }
   };
 
-  const handleConfirmScheduledCreation = async (schedulePayload: { dueAt: string; reminderType: string; note?: string }) => {
+  // Schedule follow-up callback for status changes during creation
+  const handleScheduleModalSubmit = async (data: { dueAt: string; reminderType: string; note?: string }) => {
     if (!pendingCreationPayload) return;
     setLoading(true);
 
-    try {
-      const fullPayload = {
-        ...pendingCreationPayload,
-        dueAt: schedulePayload.dueAt,
-        reminderType: schedulePayload.reminderType,
-        note: schedulePayload.note,
-      };
+    const fullPayload = {
+      ...pendingCreationPayload,
+      dueAt: data.dueAt,
+      reminderType: data.reminderType,
+      note: data.note || null,
+    };
 
-      const res = await createCompanyAction(fullPayload);
-      if (!res.success) {
-        setShowScheduleModal(false);
-        setErrors({ form: res.error || 'Failed to create company with scheduled status' });
-      } else {
-        setShowScheduleModal(false);
-        setToastMessage({ type: 'success', msg: 'Company created and reminder scheduled' });
-        onClose();
-      }
-    } catch (err: any) {
-      setShowScheduleModal(false);
-      setErrors({ form: err?.message || 'Failed to create company' });
-    } finally {
-      setLoading(false);
+    const res = await createCompanyAction(fullPayload);
+    setLoading(false);
+    setShowScheduleModal(false);
+
+    if (res.success) {
+      setToastMessage({ type: 'success', msg: 'Company and follow-up created successfully' });
+      onClose();
+    } else {
+      setErrors({ form: res.error || 'Failed to create company with status follow-up' });
     }
   };
 
@@ -230,15 +254,17 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
     const res = await restoreCompanyAction(archivedMatchId);
     setLoading(false);
     if (res.success) {
-      setToastMessage({ type: 'success', msg: 'Archived company restored successfully' });
+      setToastMessage({ type: 'success', msg: 'Company restored successfully' });
       onClose();
     } else {
-      setErrors({ form: res.error || 'Failed to restore archived company' });
+      setToastMessage({ type: 'error', msg: res.error || 'Failed to restore company' });
     }
   };
 
-  const industryOptions = industries.map((ind) => ({ value: ind.id, label: ind.name }));
-  const stateOptions = states.map((st) => ({ value: st.id, label: st.name }));
+  const industryOptions = industries.map((i) => ({ value: i.id, label: i.name }));
+  const stateOptions = states.map((s) => ({ value: s.id, label: s.name }));
+
+  const activeDefs = localDefs.filter((d) => d.isActive);
 
   return (
     <>
@@ -379,15 +405,15 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
               <label className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93]">
                 Priority
               </label>
-              <div className="grid grid-cols-3 gap-1 bg-[#1C1C1E] p-1 rounded-[10px] border border-white/10">
-                {['low', 'medium', 'high'].map((p) => (
+              <div className="flex items-center gap-1.5 p-1 bg-[#1C1C1E] border border-white/[0.08] rounded-xl">
+                {(['low', 'medium', 'high'] as const).map((p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => setPriority(p)}
-                    className={`py-1 text-center rounded-md text-xs font-medium capitalize transition-all ${
+                    className={`flex-1 py-1.5 text-xs font-semibold rounded-lg capitalize transition-all ${
                       priority === p
-                        ? 'bg-[#2C2C2E] text-white shadow-sm border border-white/10 font-semibold'
+                        ? 'bg-[#2C2C2E] text-white shadow-sm border border-white/[0.12]'
                         : 'text-[#8E8E93] hover:text-white'
                     }`}
                   >
@@ -397,46 +423,148 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
               </div>
             </div>
 
-            {/* Initial Status (Creation mode only) */}
+            {/* Initial Status (Add mode only) */}
             {!isEdit && (
               <div className="sm:col-span-2">
                 <Select
                   label="Initial Status"
                   options={[
-                    { value: 'new', label: 'New Lead' },
+                    { value: 'new', label: 'New' },
                     { value: 'contacted', label: 'Contacted' },
-                    { value: 'not_interested', label: 'Not Interested' },
-                    { value: 'contact_later', label: 'Contact Later' },
                     { value: 'meeting_scheduled', label: 'Meeting Scheduled' },
+                    { value: 'contact_later', label: 'Contact Later' },
+                    { value: 'not_interested', label: 'Not Interested' },
                   ]}
                   value={status}
                   onChange={(e) => setStatus(e.target.value as LeadStatus)}
                 />
               </div>
             )}
+
+            {/* Active Custom Fields Section */}
+            <div className="sm:col-span-2 border-t border-white/[0.06] pt-3 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8E8E93]">
+                  Custom Fields ({activeDefs.length})
+                </span>
+                {onOpenManageCustomFields && (
+                  <button
+                    type="button"
+                    onClick={onOpenManageCustomFields}
+                    className="text-xs text-[#0A84FF] hover:underline flex items-center gap-1 font-medium"
+                  >
+                    <Settings2 className="w-3.5 h-3.5" /> Manage
+                  </button>
+                )}
+              </div>
+
+              {activeDefs.map((def) => {
+                const val = customFieldsState[def.id] ?? '';
+                if (def.fieldType === 'text') {
+                  return (
+                    <Input
+                      key={def.id}
+                      label={def.name}
+                      maxLength={500}
+                      placeholder="Enter text (max 500 chars)"
+                      value={val}
+                      onChange={(e) =>
+                        setCustomFieldsState((prev) => ({
+                          ...prev,
+                          [def.id]: e.target.value,
+                        }))
+                      }
+                    />
+                  );
+                } else if (def.fieldType === 'number') {
+                  return (
+                    <Input
+                      key={def.id}
+                      type="number"
+                      label={def.name}
+                      placeholder="Enter number"
+                      value={val}
+                      onChange={(e) =>
+                        setCustomFieldsState((prev) => ({
+                          ...prev,
+                          [def.id]: e.target.value !== '' ? Number(e.target.value) : '',
+                        }))
+                      }
+                    />
+                  );
+                } else if (def.fieldType === 'date') {
+                  return (
+                    <Input
+                      key={def.id}
+                      type="date"
+                      label={def.name}
+                      value={val}
+                      onChange={(e) =>
+                        setCustomFieldsState((prev) => ({
+                          ...prev,
+                          [def.id]: e.target.value,
+                        }))
+                      }
+                      className="text-white bg-[#1C1C1E]"
+                    />
+                  );
+                } else if (def.fieldType === 'dropdown') {
+                  const opts = (def.options || []).map((o) => ({ value: o, label: o }));
+                  return (
+                    <Select
+                      key={def.id}
+                      label={def.name}
+                      options={[{ value: '', label: 'Select option' }, ...opts]}
+                      value={val}
+                      onChange={(e) =>
+                        setCustomFieldsState((prev) => ({
+                          ...prev,
+                          [def.id]: e.target.value,
+                        }))
+                      }
+                    />
+                  );
+                }
+                return null;
+              })}
+
+              <button
+                type="button"
+                onClick={() => setIsAddCustomFieldOpen(true)}
+                className="text-xs text-[#0A84FF] hover:underline font-semibold flex items-center gap-1.5 self-start pt-1"
+              >
+                <Plus className="w-4 h-4" /> Add custom field
+              </button>
+            </div>
           </div>
 
-          <div className="px-1 py-3 flex items-center justify-end gap-3 border-t border-white/[0.08] mt-2">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={loading}>
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-white/[0.08]">
+            <Button type="button" variant="ghost" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" size="sm" disabled={loading}>
-              {loading ? 'Saving...' : isEdit ? 'Update Company' : 'Add Company'}
+            <Button type="submit" variant="primary" isLoading={loading}>
+              {isEdit ? 'Save Changes' : 'Create Company'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Mandatory Schedule Follow-up step if initial status requires it */}
+      {/* Popup to Add Custom Field */}
+      <AddCustomFieldModal
+        isOpen={isAddCustomFieldOpen}
+        onClose={() => setIsAddCustomFieldOpen(false)}
+        onFieldCreated={(newField) => {
+          setLocalDefs((prev) => [...prev, newField]);
+        }}
+      />
+
+      {/* Schedule Follow-up Modal for status changes during creation */}
       {showScheduleModal && (
         <ScheduleFollowUpModal
           isOpen={showScheduleModal}
-          targetStatus={status}
-          onConfirm={handleConfirmScheduledCreation}
-          onCancel={() => {
-            setShowScheduleModal(false);
-            setPendingCreationPayload(null);
-          }}
+          targetStatus={status as any}
+          onConfirm={handleScheduleModalSubmit}
+          onCancel={() => setShowScheduleModal(false)}
           loading={loading}
         />
       )}

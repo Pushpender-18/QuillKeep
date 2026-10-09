@@ -6,6 +6,7 @@ import { withUser } from '@/lib/db';
 import { db } from '@/prisma/db';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
+import { getCustomFieldDefinitions, mergeAndValidateCustomFields } from '@/lib/custom-fields';
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -21,6 +22,7 @@ const companySchema = z.object({
   dueAt: z.string().nullable().optional(),
   reminderType: z.enum(['callback', 'meeting', 'missed_call', 'manual']).nullable().optional(),
   note: z.string().nullable().optional(),
+  customFields: z.record(z.string(), z.any()).nullable().optional(),
 });
 
 /**
@@ -74,6 +76,13 @@ export async function createCompanyAction(input: any) {
       return { success: false, error: 'A company with this name already exists' };
     }
 
+    // Custom fields validation
+    const definitions = await getCustomFieldDefinitions();
+    const cfValidation = mergeAndValidateCustomFields({}, parsed.customFields, definitions);
+    if (!cfValidation.valid) {
+      return { success: false, error: cfValidation.error };
+    }
+
     const companyId = await withUser(user.id, async (tx) => {
       // 1. Create company record with initial status 'new'
       const newCompany = await tx.orm.public.Companies.create({
@@ -85,6 +94,7 @@ export async function createCompanyAction(input: any) {
         assignedTo: parsed.assignedTo || user.id,
         createdBy: user.id,
         status: 'new',
+        customFields: cfValidation.customFields,
       });
 
       const id = String(newCompany.id);
@@ -139,7 +149,7 @@ export async function createCompanyAction(input: any) {
 }
 
 /**
- * Updates company details (Name, Industry, State, Location, Priority, Assignee).
+ * Updates company details (Name, Industry, State, Location, Priority, Assignee, CustomFields).
  * Status is not updated via this action.
  */
 export async function updateCompanyAction(companyId: string, input: any) {
@@ -162,6 +172,20 @@ export async function updateCompanyAction(companyId: string, input: any) {
       }
     }
 
+    // Validate custom fields if submitted
+    let validatedCF: Record<string, any> | undefined = undefined;
+    if (parsed.customFields !== undefined) {
+      const existingCompanies = await prisma.orm.public.Companies.where({ id: companyId }).all();
+      const existingComp = existingCompanies[0];
+      const existingCF = (existingComp as any)?.customFields || {};
+      const definitions = await getCustomFieldDefinitions();
+      const cfValidation = mergeAndValidateCustomFields(existingCF, parsed.customFields, definitions);
+      if (!cfValidation.valid) {
+        return { success: false, error: cfValidation.error };
+      }
+      validatedCF = cfValidation.customFields;
+    }
+
     await withUser(user.id, async (tx) => {
       const updateData: any = {};
       if (parsed.name) updateData.name = parsed.name.trim();
@@ -170,6 +194,7 @@ export async function updateCompanyAction(companyId: string, input: any) {
       if (parsed.location !== undefined) updateData.location = parsed.location || null;
       if (parsed.priority) updateData.priority = parsed.priority;
       if (parsed.assignedTo !== undefined) updateData.assignedTo = parsed.assignedTo || null;
+      if (validatedCF !== undefined) updateData.customFields = validatedCF;
       updateData.updatedAt = new Date().toISOString();
 
       await tx.orm.public.Companies.where({ id: companyId }).update(updateData);

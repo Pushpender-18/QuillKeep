@@ -54,6 +54,9 @@ import { RemarksSection } from '@/components/remarks/remarks-section';
 import { PresenceProvider } from '@/components/presence/presence-context';
 import { PresenceIndicator } from '@/components/presence/presence-indicator';
 
+import { CustomFieldDefinition } from '@/lib/custom-fields';
+import { ManageCustomFieldsModal } from '@/components/companies/custom-field-modal';
+
 export interface DetailContact {
   id: string;
   name: string;
@@ -85,6 +88,7 @@ export interface CompanyDetailData {
   status: LeadStatus;
   priority: PriorityLevel;
   assignedTo?: string | null;
+  customFields?: Record<string, any> | null;
   isArchived: boolean;
   archiveReason?: string | null;
   createdAt: string;
@@ -98,6 +102,7 @@ export interface CompanyDetailClientProps {
   industries: { id: string; name: string }[];
   states: { id: string; name: string }[];
   profiles: ProfileOption[];
+  customFieldDefinitions?: CustomFieldDefinition[];
   profileNameMap: Record<string, string>;
   currentUserId: string;
   initialRemarks: SerializableRemark[];
@@ -109,12 +114,14 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
   industries,
   states,
   profiles,
+  customFieldDefinitions = [],
   profileNameMap,
   currentUserId,
   initialRemarks,
   remarksTotalCount,
 }) => {
   const router = useRouter();
+  const [isManageCustomFieldsOpen, setIsManageCustomFieldsOpen] = React.useState(false);
 
   // Toast feedback
   const [toastMessage, setToastMessage] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -659,6 +666,34 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
                 <span className="text-[#8E8E93]">Location</span>
                 <span className="text-white font-medium">{company.location || '—'}</span>
               </div>
+
+              {/* Render custom fields that have values */}
+              {customFieldDefinitions.map((def) => {
+                const val = company.customFields?.[def.id];
+                if (val === undefined || val === null || val === '') return null;
+
+                const displayVal =
+                  typeof val === 'object' ? JSON.stringify(val) : String(val);
+
+                return (
+                  <div
+                    key={def.id}
+                    className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs"
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[#8E8E93] truncate">{def.name}</span>
+                      {!def.isActive && (
+                        <span className="px-1.5 py-0.2 rounded bg-[#FF9F0A]/10 text-[#FF9F0A] text-[10px] font-semibold shrink-0">
+                          Retired
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-white font-medium truncate max-w-[200px]" title={displayVal}>
+                      {displayVal}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -825,7 +860,19 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
           industries={industries}
           states={states}
           profiles={profiles}
+          customFieldDefinitions={customFieldDefinitions}
           currentUserId={currentUserId}
+          onOpenManageCustomFields={() => setIsManageCustomFieldsOpen(true)}
+        />
+      )}
+
+      {/* Manage Custom Fields Modal */}
+      {isManageCustomFieldsOpen && (
+        <ManageCustomFieldsModal
+          isOpen={isManageCustomFieldsOpen}
+          onClose={() => setIsManageCustomFieldsOpen(false)}
+          definitions={customFieldDefinitions}
+          onRefresh={() => router.refresh()}
         />
       )}
 

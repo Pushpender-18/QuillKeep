@@ -1,6 +1,7 @@
 import { getCurrentUser } from '@/lib/auth';
 import { Sidebar } from '@/components/app-sidebar';
 import { Header } from '@/components/app-header';
+import { CommandPalette } from '@/components/command-palette';
 import { getOverdueCount } from '@/lib/reminders';
 import { getNotifications } from '@/lib/notifications';
 
@@ -26,6 +27,7 @@ export default async function AppLayout({
           {children}
         </main>
       </div>
+      <CommandPalette />
     </div>
   );
 }

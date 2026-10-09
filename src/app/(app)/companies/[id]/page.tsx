@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { CompanyDetailClient } from '@/components/companies/company-detail-client';
 import { getOpenReminders } from '@/lib/reminders';
 import { getRemarksForCompany } from '@/lib/remarks';
+import { getCustomFieldDefinitions } from '@/lib/custom-fields';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -21,14 +22,16 @@ export default async function CompanyDetailPage({ params }: PageProps) {
   let rawStates: any[] = [];
   let rawProfiles: any[] = [];
 
+  const customFieldDefinitions = await getCustomFieldDefinitions();
+
   try {
     rawCompany = await prisma.orm.public.Companies.where({ id }).first();
     if (rawCompany) {
       rawContacts = await prisma.orm.public.Contacts.where({ companyId: id }).all();
       rawHistoryLogs = await prisma.orm.public.HistoryLog.where({ companyId: id }).all();
     }
-    rawIndustries = await prisma.orm.public.Industries.where({ isActive: true }).all();
-    rawStates = await prisma.orm.public.States.where({ isActive: true }).all();
+    rawIndustries = await prisma.orm.public.Industries.all();
+    rawStates = await prisma.orm.public.States.all();
     rawProfiles = await prisma.orm.public.Profiles.all();
   } catch (err) {
     console.error('[COMPANY_DETAIL_PAGE_ERROR]', err);
@@ -79,6 +82,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
     status: cleanCompany.status,
     priority: cleanCompany.priority,
     assignedTo: cleanCompany.assignedTo ? String(cleanCompany.assignedTo) : null,
+    customFields: cleanCompany.customFields || {},
     isArchived: Boolean(cleanCompany.isArchived),
     archiveReason: cleanCompany.archiveReason ? String(cleanCompany.archiveReason) : null,
     createdAt: String(cleanCompany.createdAt),
@@ -114,15 +118,19 @@ export default async function CompanyDetailPage({ params }: PageProps) {
       email: String(p.email || ''),
     }));
 
-  const activeIndustriesList = cleanIndustries.map((i: any) => ({
-    id: String(i.id),
-    name: String(i.name),
-  }));
+  const activeIndustriesList = cleanIndustries
+    .filter((i: any) => i.isActive !== false)
+    .map((i: any) => ({
+      id: String(i.id),
+      name: String(i.name),
+    }));
 
-  const activeStatesList = cleanStates.map((s: any) => ({
-    id: String(s.id),
-    name: String(s.name),
-  }));
+  const activeStatesList = cleanStates
+    .filter((s: any) => s.isActive !== false)
+    .map((s: any) => ({
+      id: String(s.id),
+      name: String(s.name),
+    }));
 
   return (
     <CompanyDetailClient
@@ -130,6 +138,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
       industries={activeIndustriesList}
       states={activeStatesList}
       profiles={activeProfilesList}
+      customFieldDefinitions={customFieldDefinitions}
       profileNameMap={profileNameMap}
       currentUserId={user.id}
       initialRemarks={remarksData.remarks}
