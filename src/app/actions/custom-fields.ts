@@ -59,7 +59,7 @@ export async function createCustomFieldAction(input: {
       cleanOptions = trimmedOpts;
     }
 
-    const createdField = await withUser(user.id, async (tx) => {
+    const createdField: any = await withUser(user.id, async (tx) => {
       const newDef = await tx.orm.public.CustomFieldDefinitions.create({
         name: cleanName,
         fieldType: parsed.fieldType,

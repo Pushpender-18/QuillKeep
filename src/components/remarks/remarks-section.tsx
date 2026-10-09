@@ -90,7 +90,7 @@ export const RemarksSection: React.FC<RemarksSectionProps> = ({
     }
   }, [newBody, editingRemarkId, presence]);
 
-  // Handle URL hash (#remark-<id>)
+  // Handle URL hash (#remark-<id>) and focus-remark-composer hotkey
   React.useEffect(() => {
     const checkHash = () => {
       const hash = window.location.hash;
@@ -104,10 +104,20 @@ export const RemarksSection: React.FC<RemarksSectionProps> = ({
       }
     };
 
+    const handleFocusComposer = () => {
+      if (!isArchived && postTextareaRef.current) {
+        postTextareaRef.current.focus();
+      }
+    };
+
     checkHash();
     window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, [remarks]);
+    window.addEventListener('focus-remark-composer', handleFocusComposer);
+    return () => {
+      window.removeEventListener('hashchange', checkHash);
+      window.removeEventListener('focus-remark-composer', handleFocusComposer);
+    };
+  }, [remarks, isArchived]);
 
   // Handle mention detection in text input
   const handleTextChange = (

@@ -71,7 +71,7 @@ export const TaskHubClient: React.FC<TaskHubClientProps> = ({
     router.push(`${pathname}?${params.toString()}`);
   };
 
-  // Support ?new=1 param to automatically open Add Reminder modal
+  // Support ?new=1 param & hotkeys trigger-add-reminder to open Add Reminder modal
   React.useEffect(() => {
     if (searchParams.get('new') === '1') {
       setIsAddModalOpen(true);
@@ -80,6 +80,15 @@ export const TaskHubClient: React.FC<TaskHubClientProps> = ({
       params.delete('new');
       router.replace(`${pathname}?${params.toString()}`);
     }
+
+    const handleTriggerAdd = () => {
+      setEditingReminder(null);
+      setModalFocusField('general');
+      setIsAddModalOpen(true);
+    };
+
+    window.addEventListener('trigger-add-reminder', handleTriggerAdd);
+    return () => window.removeEventListener('trigger-add-reminder', handleTriggerAdd);
   }, [searchParams, pathname, router]);
 
   // Month navigation logic

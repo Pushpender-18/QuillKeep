@@ -91,23 +91,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ user, overdueCount = 0 }) => {
       </div>
 
       {/* User Profile & Sign Out Footer */}
-      <div className="pt-4 border-t border-white/[0.08] flex items-center justify-between px-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <Avatar name={user.fullName} email={user.email} size="md" />
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-semibold text-white truncate">{user.fullName || 'User'}</span>
-            <span className="text-[11px] text-[#8E8E93] truncate">{user.email}</span>
+      <div className="pt-3 border-t border-white/[0.08] flex flex-col gap-3">
+        {/* Keyboard Shortcuts Trigger Button */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('open-keyboard-shortcuts-modal'))}
+          className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs text-[#8E8E93] hover:text-white hover:bg-white/[0.04] transition-colors cursor-pointer"
+        >
+          <span className="font-medium">Keyboard shortcuts</span>
+          <kbd className="w-4 h-4 rounded bg-white/[0.08] border border-white/10 text-[10px] font-mono text-center flex items-center justify-center text-[#8E8E93]">
+            ?
+          </kbd>
+        </button>
+
+        <div className="flex items-center justify-between px-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar name={user.fullName} email={user.email} size="md" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-white truncate">{user.fullName || 'User'}</span>
+              <span className="text-[11px] text-[#8E8E93] truncate">{user.email}</span>
+            </div>
           </div>
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              title="Sign out"
+              className="p-1.5 rounded-lg text-[#8E8E93] hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </form>
         </div>
-        <form action={signOutAction}>
-          <button
-            type="submit"
-            title="Sign out"
-            className="p-1.5 rounded-lg text-[#8E8E93] hover:text-white hover:bg-white/[0.08] transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-          </button>
-        </form>
       </div>
     </aside>
   );

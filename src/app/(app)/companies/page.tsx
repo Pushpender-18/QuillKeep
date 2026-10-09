@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { convertBigInts } from '@/lib/utils';
 import { CompaniesListClient, CompanyListRow } from '@/components/companies/companies-list-client';
 import { getCustomFieldDefinitions } from '@/lib/custom-fields';
-import { getCompanyIdsMatchingCustomFieldFilters } from '@/lib/company-filters';
+import { buildCompanyWhere } from '@/lib/companies-query';
 
 interface PageProps {
   searchParams: Promise<Record<string, string | undefined>>;
@@ -70,141 +70,23 @@ export default async function CompaniesPage({ searchParams }: PageProps) {
   const industryMap = new Map(cleanIndustries.map((i) => [i.id, i.name]));
   const profileMap = new Map(cleanProfiles.map((p) => [p.id, p]));
 
-  // Process Custom Field Filters from URL params
-  const cfFilters: Array<{
-    fieldId: string;
-    type: 'text' | 'dropdown' | 'number' | 'date';
-    textVal?: string;
-    dropdownVals?: string[];
-    minNum?: number;
-    maxNum?: number;
-    fromDate?: string;
-    toDate?: string;
-  }> = [];
-
-  customFieldDefinitions
-    .filter((d) => d.isActive)
-    .forEach((def) => {
-      if (def.fieldType === 'text') {
-        const v = params[`cf_text_${def.id}`];
-        if (v) cfFilters.push({ fieldId: def.id, type: 'text', textVal: v });
-      } else if (def.fieldType === 'dropdown') {
-        const v = params[`cf_drop_${def.id}`];
-        if (v) cfFilters.push({ fieldId: def.id, type: 'dropdown', dropdownVals: v.split(',').filter(Boolean) });
-      } else if (def.fieldType === 'number') {
-        const min = params[`cf_num_min_${def.id}`];
-        const max = params[`cf_num_max_${def.id}`];
-        if (min || max) {
-          cfFilters.push({
-            fieldId: def.id,
-            type: 'number',
-            minNum: min ? Number(min) : undefined,
-            maxNum: max ? Number(max) : undefined,
-          });
-        }
-      } else if (def.fieldType === 'date') {
-        const from = params[`cf_date_from_${def.id}`];
-        const to = params[`cf_date_to_${def.id}`];
-        if (from || to) {
-          cfFilters.push({
-            fieldId: def.id,
-            type: 'date',
-            fromDate: from,
-            toDate: to,
-          });
-        }
-      }
-    });
-
-  // Query database via parameterized SQL for matching custom field company IDs if active
-  const cfMatchingCompanyIds = await getCompanyIdsMatchingCustomFieldFilters(cfFilters);
-
-  // Extract pill filters
-  const selectedStatuses = (params.status || '').split(',').filter(Boolean);
-  const selectedStates = (params.state || '').split(',').filter(Boolean);
-  const selectedIndustries = (params.industry || '').split(',').filter(Boolean);
-  const selectedAssigned = (params.assigned || '').split(',').filter(Boolean);
-  const selectedPriorities = (params.priority || '').split(',').filter(Boolean);
-  const locationParam = (params.location || '').trim().toLowerCase();
-
-  // Filter companies
-  let filtered = convertBigInts(rawCompanies).filter((c: any) => {
-    const cId = String(c.id);
-
-    // 1. View filter
-    const matchesView = view === 'archived' ? Boolean(c.isArchived) : !c.isArchived;
-    if (!matchesView) return false;
-
-    // 2. Scope filter
-    if (scope === 'my') {
-      const assignedToId = c.assignedTo ? String(c.assignedTo) : null;
-      if (assignedToId !== user.id) return false;
-    }
-
-    // 3. Search query filter (q min 2 chars): matches name, contact name/email/phone, remark body case-insensitive
-    if (searchQuery.length >= 2) {
-      const qLower = searchQuery.toLowerCase();
-      const compNameMatch = String(c.name).toLowerCase().includes(qLower);
-
-      const compContacts = cleanContacts.filter((ct: any) => String(ct.companyId) === cId);
-      const contactMatch = compContacts.some(
-        (ct: any) =>
-          String(ct.name || '').toLowerCase().includes(qLower) ||
-          String(ct.email || '').toLowerCase().includes(qLower) ||
-          String(ct.phone || '').toLowerCase().includes(qLower)
-      );
-
-      const compRemarks = cleanRemarks.filter((rm: any) => String(rm.companyId) === cId);
-      const remarkMatch = compRemarks.some((rm: any) =>
-        String(rm.body || '').toLowerCase().includes(qLower)
-      );
-
-      if (!compNameMatch && !contactMatch && !remarkMatch) {
-        return false;
-      }
-    }
-
-    // 4. Status filter (OR within status pill)
-    if (selectedStatuses.length > 0) {
-      if (!selectedStatuses.includes(String(c.status))) return false;
-    }
-
-    // 5. State filter (OR within state pill)
-    if (selectedStates.length > 0) {
-      const stId = c.stateId ? String(c.stateId) : null;
-      if (!stId || !selectedStates.includes(stId)) return false;
-    }
-
-    // 6. Industry filter (OR within industry pill)
-    if (selectedIndustries.length > 0) {
-      const indId = c.industryId ? String(c.industryId) : null;
-      if (!indId || !selectedIndustries.includes(indId)) return false;
-    }
-
-    // 7. Assigned To filter (OR within assigned pill)
-    if (selectedAssigned.length > 0 && scope !== 'my') {
-      const assignedId = c.assignedTo ? String(c.assignedTo) : 'unassigned';
-      if (!selectedAssigned.includes(assignedId)) return false;
-    }
-
-    // 8. Priority filter (OR within priority pill)
-    if (selectedPriorities.length > 0) {
-      if (!selectedPriorities.includes(String(c.priority))) return false;
-    }
-
-    // 9. Location filter (contains)
-    if (locationParam) {
-      const locStr = String(c.location || '').toLowerCase();
-      if (!locStr.includes(locationParam)) return false;
-    }
-
-    // 10. Custom Fields SQL matching filter (AND across custom fields)
-    if (cfMatchingCompanyIds !== null) {
-      if (!cfMatchingCompanyIds.includes(cId)) return false;
-    }
-
-    return true;
+  // Filter companies using shared filtering logic
+  const { isMatch } = await buildCompanyWhere(params, user.id);
+  const contactsMap = new Map<string, any[]>();
+  cleanContacts.forEach((ct: any) => {
+    const cId = String(ct.companyId);
+    if (!contactsMap.has(cId)) contactsMap.set(cId, []);
+    contactsMap.get(cId)!.push(ct);
   });
+
+  const remarksMap = new Map<string, any[]>();
+  cleanRemarks.forEach((rm: any) => {
+    const cId = String(rm.companyId);
+    if (!remarksMap.has(cId)) remarksMap.set(cId, []);
+    remarksMap.get(cId)!.push(rm);
+  });
+
+  let filtered = convertBigInts(rawCompanies).filter((c: any) => isMatch(c, contactsMap, remarksMap));
 
   // Sorting
   const priorityWeight: Record<string, number> = {

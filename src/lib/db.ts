@@ -9,14 +9,15 @@ type TransactionContext = Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 export async function withUser<T>(
   userId: string,
-  fn: (tx: TransactionContext) => Promise<T>
+  fn: (tx: TransactionContext) => Promise<T>,
+  options?: { maxWait?: number; timeout?: number }
 ) {
-  return db.transaction(async (tx) => {
+  return (db.transaction as any)(async (tx: TransactionContext) => {
     const plan = db.raw
       .sql`select set_config('request.jwt.claims', ${JSON.stringify({ sub: userId, role: 'authenticated' })}, true)`
       .affectedCount()
       .build();
     await tx.execute(plan);
     return fn(tx);
-  });
+  }, options);
 }

@@ -167,7 +167,7 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
     setCurrentStatus(company.status);
   }, [company.status]);
 
-  // Click outside handlers
+  // Click outside handlers & status dropdown event listener
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (statusRef.current && !statusRef.current.contains(e.target as Node)) {
@@ -180,9 +180,20 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
         setIsActionsOpen(false);
       }
     };
+
+    const handleOpenStatus = () => {
+      if (!company.isArchived) {
+        setIsStatusDropdownOpen((prev) => !prev);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    window.addEventListener('open-status-dropdown', handleOpenStatus);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('open-status-dropdown', handleOpenStatus);
+    };
+  }, [company.isArchived]);
 
   // Status Change trigger
   const handleSelectStatus = async (newStatus: LeadStatus) => {

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { StatusPill } from '@/components/ui/status-pill';
+import { StatusPill, LeadStatus } from '@/components/ui/status-pill';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -11,10 +11,15 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { AddEditCompanyModal } from '@/components/companies/add-edit-company-modal';
 import { CompaniesFilterPanel, FilterOption } from '@/components/companies/companies-filter-panel';
 import { ManageCustomFieldsModal } from '@/components/companies/custom-field-modal';
+import { RowQuickActions } from '@/components/companies/row-quick-actions';
+import { BulkActionsBar } from '@/components/companies/bulk-actions-bar';
+import { ImportExportModal } from '@/components/import-export/import-export-modal';
+import { ReminderModal } from '@/components/reminders/reminder-modal';
 import { restoreCompanyAction } from '@/app/actions/companies';
+import { getMatchingCompanyIdsAction } from '@/app/actions/bulk-companies';
 import { Toast } from '@/components/ui/toast';
 import { formatRelativeTime } from '@/lib/date-utils';
-import { Plus, Building2, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FilterX } from 'lucide-react';
+import { Plus, Building2, ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, FilterX, ArrowDownUp, Sparkles } from 'lucide-react';
 import { ProfileOption } from '@/components/ui/select-with-avatars';
 import { CustomFieldDefinition } from '@/lib/custom-fields';
 
@@ -70,12 +75,29 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
   const [isManageCustomFieldsOpen, setIsManageCustomFieldsOpen] = React.useState(false);
+  const [isImportExportOpen, setIsImportExportOpen] = React.useState(false);
+  const [reminderModalCompanyId, setReminderModalCompanyId] = React.useState<string | null>(null);
+
+  // Selection State
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
+  const [isAllMatchingSelected, setIsAllMatchingSelected] = React.useState(false);
+  const [isLoadingAllMatching, setIsLoadingAllMatching] = React.useState(false);
+  const lastSelectedIndexRef = React.useRef<number | null>(null);
+
   const [toastMessage, setToastMessage] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [restoringId, setRestoringId] = React.useState<string | null>(null);
 
-  // Check for ?new=1 param on mount / param change to open Add Company modal and clean up param
+  // Clear selection whenever search, filters, scope or view changes
+  const searchParamsString = searchParams.toString();
+  React.useEffect(() => {
+    setSelectedIds([]);
+    setIsAllMatchingSelected(false);
+  }, [searchParamsString, currentView, currentScope]);
+
+  // Handle ?new=1 & hotkeys custom event
   React.useEffect(() => {
     if (searchParams.get('new') === '1') {
       setIsAddModalOpen(true);
@@ -83,6 +105,10 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
       params.delete('new');
       router.replace(`${pathname}?${params.toString()}`);
     }
+
+    const handleTriggerAddCompany = () => setIsAddModalOpen(true);
+    window.addEventListener('trigger-add-company', handleTriggerAddCompany);
+    return () => window.removeEventListener('trigger-add-company', handleTriggerAddCompany);
   }, [searchParams, pathname, router]);
 
   // Helper to update search params
@@ -107,10 +133,9 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
     }
   };
 
-  const handleRestore = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // prevent row click navigation
-    setRestoringId(id);
-    const res = await restoreCompanyAction(id);
+  const handleRestore = async (companyId: string) => {
+    setRestoringId(companyId);
+    const res = await restoreCompanyAction(companyId);
     setRestoringId(null);
     if (res.success) {
       setToastMessage({ type: 'success', msg: 'Company restored successfully' });
@@ -140,6 +165,74 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  // Selection Logic
+  const pageCompanyIds = companies.map((c) => c.id);
+  const isAllPageSelected = pageCompanyIds.length > 0 && pageCompanyIds.every((id) => selectedIds.includes(id));
+  const isPartialPageSelected = pageCompanyIds.some((id) => selectedIds.includes(id)) && !isAllPageSelected;
+
+  const handleHeaderCheckboxChange = () => {
+    if (isAllPageSelected) {
+      // Unselect current page items
+      setSelectedIds(selectedIds.filter((id) => !pageCompanyIds.includes(id)));
+      setIsAllMatchingSelected(false);
+    } else {
+      // Select current page items
+      const newSelected = Array.from(new Set([...selectedIds, ...pageCompanyIds]));
+      setSelectedIds(newSelected);
+    }
+  };
+
+  const handleRowCheckboxChange = (e: React.MouseEvent, index: number, companyId: string) => {
+    e.stopPropagation();
+
+    let newSelected: string[];
+    if (e.shiftKey && lastSelectedIndexRef.current !== null) {
+      const start = Math.min(lastSelectedIndexRef.current, index);
+      const end = Math.max(lastSelectedIndexRef.current, index);
+      const rangeIds = companies.slice(start, end + 1).map((c) => c.id);
+
+      if (selectedIds.includes(companyId)) {
+        newSelected = selectedIds.filter((id) => !rangeIds.includes(id));
+      } else {
+        newSelected = Array.from(new Set([...selectedIds, ...rangeIds]));
+      }
+    } else {
+      if (selectedIds.includes(companyId)) {
+        newSelected = selectedIds.filter((id) => id !== companyId);
+      } else {
+        newSelected = [...selectedIds, companyId];
+      }
+    }
+
+    lastSelectedIndexRef.current = index;
+    setSelectedIds(newSelected);
+    setIsAllMatchingSelected(false);
+  };
+
+  const handleSelectAllMatching = async () => {
+    setIsLoadingAllMatching(true);
+    const rawParamsObj: Record<string, string> = {};
+    searchParams.forEach((v, k) => {
+      rawParamsObj[k] = v;
+    });
+
+    const res = await getMatchingCompanyIdsAction(rawParamsObj);
+    setIsLoadingAllMatching(false);
+
+    if (res.success && res.ids) {
+      setSelectedIds(res.ids);
+      setIsAllMatchingSelected(true);
+      if (res.hasMoreThan500) {
+        setToastMessage({
+          type: 'error',
+          msg: `Selected first 500 matching companies (capped at 500 maximum).`,
+        });
+      }
+    } else {
+      setToastMessage({ type: 'error', msg: res.error || 'Failed to select all matching' });
+    }
+  };
+
   const totalPages = Math.ceil(totalCount / pageSize);
 
   const getSortIcon = (column: 'name' | 'last_contact' | 'priority') => {
@@ -153,7 +246,6 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
     );
   };
 
-  // Determine if any filters are active
   const hasActiveFilters =
     Boolean(searchParams.get('q')) ||
     Boolean(searchParams.get('status')) ||
@@ -171,6 +263,13 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
     isActive: p.isActive,
   }));
 
+  // Map for ReminderModal options
+  const reminderCompaniesOptions = companies.map((c) => ({
+    id: c.id,
+    name: c.name,
+    isArchived: c.isArchived,
+  }));
+
   return (
     <div className="flex flex-col gap-5 w-full">
       {toastMessage && (
@@ -184,9 +283,8 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
 
       {/* Top Controls Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        {/* Left Toggles: Active/Archived & My Leads/All Team Leads */}
+        {/* Left Toggles */}
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Active vs Archived segmented toggle */}
           <SegmentedControl
             options={[
               { value: 'active', label: 'Active' },
@@ -197,7 +295,6 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
             size="sm"
           />
 
-          {/* My Leads vs All Team Leads toggle */}
           <SegmentedControl
             options={[
               { value: 'my', label: 'My Leads' },
@@ -209,8 +306,17 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
           />
         </div>
 
-        {/* Right Action: Add Company */}
-        <div className="flex items-center gap-3">
+        {/* Right Actions: Import/Export & Add Company */}
+        <div className="flex items-center gap-2.5">
+          <Button
+            variant="ghost"
+            onClick={() => setIsImportExportOpen(true)}
+            className="h-9 px-3 text-xs border border-white/10 hover:bg-white/[0.08]"
+          >
+            <ArrowDownUp className="w-3.5 h-3.5 mr-1.5 text-[#0A84FF]" />
+            Import / Export
+          </Button>
+
           <Button onClick={() => setIsAddModalOpen(true)} className="h-9 px-4">
             <Plus className="w-4 h-4 mr-1.5" />
             Add Company
@@ -218,7 +324,7 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
         </div>
       </div>
 
-      {/* Search & Filters Row Component */}
+      {/* Search & Filters Panel Component */}
       <CompaniesFilterPanel
         totalCount={totalCount}
         currentScope={currentScope}
@@ -228,6 +334,47 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
         customFieldDefinitions={customFieldDefinitions}
         onOpenManageCustomFields={() => setIsManageCustomFieldsOpen(true)}
       />
+
+      {/* Select All Matching Banner */}
+      {isAllPageSelected && totalCount > pageSize && !isAllMatchingSelected && (
+        <div className="w-full bg-[#0A84FF]/10 border border-[#0A84FF]/30 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-white">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#0A84FF]" />
+            <span>
+              All <strong>{companies.length}</strong> companies on this page are selected.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleSelectAllMatching}
+            disabled={isLoadingAllMatching}
+            className="text-[#0A84FF] hover:underline font-semibold cursor-pointer"
+          >
+            {isLoadingAllMatching ? 'Selecting...' : `Select all ${totalCount} matching companies`}
+          </button>
+        </div>
+      )}
+
+      {isAllMatchingSelected && (
+        <div className="w-full bg-[#0A84FF]/10 border border-[#0A84FF]/30 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-white">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-[#0A84FF]" />
+            <span>
+              All <strong>{selectedIds.length}</strong> matching companies are selected.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedIds([]);
+              setIsAllMatchingSelected(false);
+            }}
+            className="text-[#8E8E93] hover:text-white underline cursor-pointer"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
 
       {/* Companies Data Table Card */}
       {companies.length === 0 ? (
@@ -264,18 +411,26 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
       ) : (
         <div className="w-full bg-[#141417] border border-[#242428] rounded-xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse table-fixed min-w-[900px]">
+            <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
               <thead>
                 <tr className="h-11 bg-[#1A1A1E] border-b border-[#26262A] text-[#A1A1AA] text-[11px] font-semibold uppercase tracking-wider select-none">
-                  {/* Checkbox column (visual only) */}
+                  {/* Header Checkbox */}
                   <th className="w-12 px-3 text-center">
-                    <input type="checkbox" disabled className="w-4 h-4 rounded accent-[#0A84FF] opacity-60 cursor-not-allowed" />
+                    <input
+                      type="checkbox"
+                      checked={isAllPageSelected}
+                      ref={(input) => {
+                        if (input) input.indeterminate = isPartialPageSelected;
+                      }}
+                      onChange={handleHeaderCheckboxChange}
+                      className="w-4 h-4 rounded border-white/20 bg-[#1F1F23] accent-[#0A84FF] cursor-pointer"
+                    />
                   </th>
 
                   {/* Company Name (Sortable) */}
                   <th
                     onClick={() => handleToggleSort('name')}
-                    className="w-[24%] px-3.5 cursor-pointer hover:text-white transition-colors group"
+                    className="w-[22%] px-3.5 cursor-pointer hover:text-white transition-colors group"
                   >
                     <div className="flex items-center">
                       <span>Company Name</span>
@@ -284,13 +439,13 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
                   </th>
 
                   {/* Industry */}
-                  <th className="w-[14%] px-3.5">Industry</th>
+                  <th className="w-[13%] px-3.5">Industry</th>
 
                   {/* Location */}
-                  <th className="w-[14%] px-3">Location</th>
+                  <th className="w-[13%] px-3">Location</th>
 
                   {/* Status Pill */}
-                  <th className="w-[14%] px-3">Status</th>
+                  <th className="w-[13%] px-3">Status</th>
 
                   {/* Priority (Sortable) */}
                   <th
@@ -306,13 +461,13 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
                   {/* Assigned To */}
                   <th className="w-[12%] px-3">Assigned To</th>
 
-                  {/* Last Contacted (Sortable) / Archive Reason */}
+                  {/* Last Contacted / Archive Reason */}
                   {currentView === 'archived' ? (
-                    <th className="w-[12%] px-3">Archive Reason</th>
+                    <th className="w-[11%] px-3">Archive Reason</th>
                   ) : (
                     <th
                       onClick={() => handleToggleSort('last_contact')}
-                      className="w-[12%] px-3 cursor-pointer hover:text-white transition-colors group"
+                      className="w-[11%] px-3 cursor-pointer hover:text-white transition-colors group"
                     >
                       <div className="flex items-center">
                         <span>Last Contacted</span>
@@ -321,98 +476,108 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
                     </th>
                   )}
 
-                  {/* Actions column for hover Restore */}
-                  <th className="w-16 px-2 text-center"></th>
+                  {/* Row Actions column */}
+                  <th className="w-24 px-2 text-right"></th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-[#242428] text-xs font-normal text-[#E4E4E7]">
-                {companies.map((c) => (
-                  <tr
-                    key={c.id}
-                    onClick={() => router.push(`/companies/${c.id}`)}
-                    className="h-14 hover:bg-white/[0.04] transition-colors cursor-pointer group"
-                  >
-                    {/* Checkbox */}
-                    <td className="px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" className="w-4 h-4 rounded border-white/20 bg-[#1F1F23] accent-[#0A84FF] cursor-pointer" />
-                    </td>
+                {companies.map((c, index) => {
+                  const isSelected = selectedIds.includes(c.id);
 
-                    {/* Company Name */}
-                    <td className="px-3.5 font-medium text-white truncate">
-                      {c.name}
-                    </td>
-
-                    {/* Industry */}
-                    <td className="px-3.5 text-[#A1A1AA] truncate">
-                      {c.industryName || <span className="text-[#52525B]">—</span>}
-                    </td>
-
-                    {/* Location */}
-                    <td className="px-3 text-[#A1A1AA] truncate">
-                      {c.location || <span className="text-[#52525B]">—</span>}
-                    </td>
-
-                    {/* Status Pill */}
-                    <td className="px-3">
-                      <StatusPill status={c.status as any} />
-                    </td>
-
-                    {/* Priority Tag */}
-                    <td className="px-3">
-                      <PriorityTag priority={c.priority as any} />
-                    </td>
-
-                    {/* Assigned To Avatar */}
-                    <td className="px-3">
-                      {c.assignedToProfile ? (
-                        <div className="flex items-center gap-2 min-w-0" title={c.assignedToProfile.email}>
-                          <Avatar
-                            name={c.assignedToProfile.fullName}
-                            email={c.assignedToProfile.email}
-                            size="sm"
-                          />
-                          <span className="truncate text-xs text-[#E4E4E7]">
-                            {c.assignedToProfile.fullName}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-[#52525B] text-xs">—</span>
-                      )}
-                    </td>
-
-                    {/* Last Contacted / Archive Reason */}
-                    {currentView === 'archived' ? (
-                      <td className="px-3 text-[#A1A1AA] truncate italic">
-                        {c.archiveReason || 'No reason specified'}
+                  return (
+                    <tr
+                      key={c.id}
+                      onClick={() => router.push(`/companies/${c.id}`)}
+                      className={`h-14 hover:bg-white/[0.04] transition-colors cursor-pointer group ${
+                        isSelected ? 'bg-[#0A84FF]/10' : ''
+                      }`}
+                    >
+                      {/* Checkbox */}
+                      <td className="px-3 text-center" onClick={(e) => handleRowCheckboxChange(e, index, c.id)}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="w-4 h-4 rounded border-white/20 bg-[#1F1F23] accent-[#0A84FF] cursor-pointer"
+                        />
                       </td>
-                    ) : (
+
+                      {/* Company Name */}
+                      <td className="px-3.5 font-medium text-white truncate">
+                        {c.name}
+                      </td>
+
+                      {/* Industry */}
+                      <td className="px-3.5 text-[#A1A1AA] truncate">
+                        {c.industryName || <span className="text-[#52525B]">—</span>}
+                      </td>
+
+                      {/* Location */}
                       <td className="px-3 text-[#A1A1AA] truncate">
-                        {c.lastContactedAt ? (
-                          formatRelativeTime(c.lastContactedAt)
+                        {c.location || <span className="text-[#52525B]">—</span>}
+                      </td>
+
+                      {/* Status Pill */}
+                      <td className="px-3">
+                        <StatusPill status={c.status as any} />
+                      </td>
+
+                      {/* Priority Tag */}
+                      <td className="px-3">
+                        <PriorityTag priority={c.priority as any} />
+                      </td>
+
+                      {/* Assigned To Avatar */}
+                      <td className="px-3">
+                        {c.assignedToProfile ? (
+                          <div className="flex items-center gap-2 min-w-0" title={c.assignedToProfile.email}>
+                            <Avatar
+                              name={c.assignedToProfile.fullName}
+                              email={c.assignedToProfile.email}
+                              size="sm"
+                            />
+                            <span className="truncate text-xs text-[#E4E4E7]">
+                              {c.assignedToProfile.fullName}
+                            </span>
+                          </div>
                         ) : (
-                          <span className="text-[#52525B]">—</span>
+                          <span className="text-[#52525B] text-xs">—</span>
                         )}
                       </td>
-                    )}
 
-                    {/* Hover Action: Restore button for archived rows */}
-                    <td className="px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                      {c.isArchived && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={(e) => handleRestore(e, c.id)}
-                          isLoading={restoringId === c.id}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity h-7 px-2 text-[11px]"
-                          title="Restore company"
-                        >
-                          <RotateCcw className="w-3 h-3 mr-1 text-[#30D158]" /> Restore
-                        </Button>
+                      {/* Last Contacted / Archive Reason */}
+                      {currentView === 'archived' ? (
+                        <td className="px-3 text-[#A1A1AA] truncate italic">
+                          {c.archiveReason || 'No reason specified'}
+                        </td>
+                      ) : (
+                        <td className="px-3 text-[#A1A1AA] truncate">
+                          {c.lastContactedAt ? (
+                            formatRelativeTime(c.lastContactedAt)
+                          ) : (
+                            <span className="text-[#52525B]">—</span>
+                          )}
+                        </td>
                       )}
-                    </td>
-                  </tr>
-                ))}
+
+                      {/* Hover Action Buttons */}
+                      <td className="px-2 text-right pr-3" onClick={(e) => e.stopPropagation()}>
+                        <RowQuickActions
+                          companyId={c.id}
+                          companyName={c.name}
+                          currentStatus={c.status as LeadStatus}
+                          isArchived={c.isArchived}
+                          profiles={profiles}
+                          onOpenReminderModal={(cId) => setReminderModalCompanyId(cId)}
+                          onRestoreCompany={(cId) => handleRestore(cId)}
+                          onSuccessToast={(msg) => setToastMessage({ type: 'success', msg })}
+                          onErrorToast={(msg) => setToastMessage({ type: 'error', msg })}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -453,6 +618,23 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
         </div>
       )}
 
+      {/* Floating Bulk Actions Bar */}
+      <BulkActionsBar
+        selectedIds={selectedIds}
+        totalMatchingCount={totalCount}
+        isAllMatchingSelected={isAllMatchingSelected}
+        onSelectAllMatching={handleSelectAllMatching}
+        onClearSelection={() => setSelectedIds([])}
+        currentView={currentView}
+        profiles={profiles}
+        onOpenExportModal={() => setIsImportExportOpen(true)}
+        onSuccess={(msg) => {
+          setToastMessage({ type: 'success', msg });
+          router.refresh();
+        }}
+        onError={(msg) => setToastMessage({ type: 'error', msg })}
+      />
+
       {/* Add / Edit Company Modal */}
       <AddEditCompanyModal
         isOpen={isAddModalOpen}
@@ -472,6 +654,31 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
         definitions={customFieldDefinitions}
         onRefresh={() => router.refresh()}
       />
+
+      {/* Import / Export Modal */}
+      <ImportExportModal
+        isOpen={isImportExportOpen}
+        onClose={() => setIsImportExportOpen(false)}
+        selectedCompanyIds={selectedIds}
+        currentSearchParamsStr={searchParams.toString()}
+        currentUserId={currentUserId}
+        profiles={profiles}
+        onRefreshList={() => router.refresh()}
+        onSuccessToast={(msg) => setToastMessage({ type: 'success', msg })}
+        onErrorToast={(msg) => setToastMessage({ type: 'error', msg })}
+      />
+
+      {/* Quick Action Reminder Modal (with company locked) */}
+      {reminderModalCompanyId && (
+        <ReminderModal
+          isOpen={Boolean(reminderModalCompanyId)}
+          onClose={() => setReminderModalCompanyId(null)}
+          prefilledCompanyId={reminderModalCompanyId}
+          companies={reminderCompaniesOptions}
+          profiles={profiles}
+          currentUserId={currentUserId}
+        />
+      )}
     </div>
   );
 };
