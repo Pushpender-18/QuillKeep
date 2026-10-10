@@ -584,7 +584,7 @@ export const ImportExportModal: React.FC<ImportExportModalProps> = ({
                       Drag & drop your CSV or Excel file here
                     </p>
                     <p className="text-[11px] text-[#8E8E93] mt-1">
-                      Supports .csv and .xlsx (Max 5 MB & 1,000 data rows)
+                      Supports .csv and .xlsx (Max 2 MB & 1,000 data rows)
                     </p>
                   </div>
                 </div>

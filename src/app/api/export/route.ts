@@ -7,6 +7,9 @@ import { getCustomFieldDefinitions } from '@/lib/custom-fields';
 import Papa from 'papaparse';
 import ExcelJS from 'exceljs';
 
+export const maxDuration = 60;
+
+
 export async function GET(req: NextRequest) {
   return handleExport(req);
 }

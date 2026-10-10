@@ -1,6 +1,7 @@
 'use server';
 
 import { getCurrentUser } from '@/lib/auth';
+import { safeAction } from '@/lib/safe-action';
 import { prisma } from '@/lib/prisma';
 import { withUser } from '@/lib/db';
 import { db } from '@/prisma/db';
@@ -58,29 +59,23 @@ export async function checkCompanyNameAction(name: string, excludeId?: string) {
  * Creates a new company record within a withUser transaction.
  */
 export async function createCompanyAction(input: any) {
-  try {
-    const user = await getCurrentUser();
+  return safeAction('createCompanyAction', async (user) => {
     const parsed = companySchema.parse(input);
 
     // Name uniqueness check
     const checkRes = await checkCompanyNameAction(parsed.name);
     if (checkRes.exists) {
       if (checkRes.isArchived) {
-        return {
-          success: false,
-          error: 'This company is archived.',
-          isArchived: true,
-          companyId: checkRes.companyId,
-        };
+        throw new Error('This company is archived.');
       }
-      return { success: false, error: 'A company with this name already exists' };
+      throw new Error('A company with this name already exists');
     }
 
     // Custom fields validation
     const definitions = await getCustomFieldDefinitions();
     const cfValidation = mergeAndValidateCustomFields({}, parsed.customFields, definitions);
     if (!cfValidation.valid) {
-      return { success: false, error: cfValidation.error };
+      throw new Error(cfValidation.error || 'Invalid custom fields');
     }
 
     const companyId = await withUser(user.id, async (tx) => {
@@ -142,10 +137,7 @@ export async function createCompanyAction(input: any) {
 
     revalidatePath('/companies');
     return { success: true, companyId };
-  } catch (err: any) {
-    console.error('[CREATE_COMPANY_ACTION]', err);
-    return { success: false, error: err?.message || 'Failed to create company' };
-  }
+  });
 }
 
 /**

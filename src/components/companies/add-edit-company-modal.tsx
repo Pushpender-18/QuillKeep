@@ -180,9 +180,9 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
       }
 
       // Execute Save Action
-      let res: { success: boolean; error?: string };
+      let actionRes: any;
       if (isEdit && initialData?.id) {
-        res = await updateCompanyAction(initialData.id, {
+        actionRes = await updateCompanyAction(initialData.id, {
           name: name.trim(),
           industryId: industryId || null,
           stateId: stateId || null,
@@ -192,7 +192,7 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
           customFields: customFieldsState,
         });
       } else {
-        res = await createCompanyAction({
+        actionRes = await createCompanyAction({
           name: name.trim(),
           industryId: industryId || null,
           stateId: stateId || null,
@@ -209,14 +209,17 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
 
       setLoading(false);
 
-      if (res.success) {
+      const isSuccess = actionRes.ok ? true : actionRes.success;
+      const errorMsg = actionRes.ok === false ? actionRes.message : actionRes.error;
+
+      if (isSuccess) {
         setToastMessage({
           type: 'success',
           msg: isEdit ? 'Company updated successfully' : 'Company added successfully',
         });
         onClose();
       } else {
-        setErrors({ form: res.error || 'Failed to save company' });
+        setErrors({ form: errorMsg || 'Failed to save company' });
       }
     } catch (err: any) {
       setLoading(false);
@@ -236,15 +239,18 @@ export const AddEditCompanyModal: React.FC<AddEditCompanyModalProps> = ({
       note: data.note || null,
     };
 
-    const res = await createCompanyAction(fullPayload);
+    const actionRes: any = await createCompanyAction(fullPayload);
     setLoading(false);
     setShowScheduleModal(false);
 
-    if (res.success) {
+    const isSuccess = actionRes.ok ? true : actionRes.success;
+    const errorMsg = actionRes.ok === false ? actionRes.message : actionRes.error;
+
+    if (isSuccess) {
       setToastMessage({ type: 'success', msg: 'Company and follow-up created successfully' });
       onClose();
     } else {
-      setErrors({ form: res.error || 'Failed to create company with status follow-up' });
+      setErrors({ form: errorMsg || 'Failed to create company with status follow-up' });
     }
   };
 

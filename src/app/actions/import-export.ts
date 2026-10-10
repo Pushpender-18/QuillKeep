@@ -29,8 +29,8 @@ export async function parseImportFileAction(formData: FormData) {
       return { success: false, error: 'No file provided' };
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      return { success: false, error: 'File size exceeds maximum allowed limit of 5 MB' };
+    if (file.size > 2 * 1024 * 1024) {
+      return { success: false, error: 'File size exceeds maximum allowed limit of 2 MB' };
     }
 
     const fileName = file.name.toLowerCase();

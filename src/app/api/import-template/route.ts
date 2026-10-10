@@ -3,6 +3,9 @@ import { getCurrentUser } from '@/lib/auth';
 import { getCustomFieldDefinitions } from '@/lib/custom-fields';
 import Papa from 'papaparse';
 
+export const maxDuration = 60;
+
+
 export async function GET() {
   try {
     await getCurrentUser();
