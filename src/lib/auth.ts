@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
@@ -12,10 +13,10 @@ export interface ProfileUser {
 }
 
 /**
- * Verifies session with supabase.auth.getUser() and loads matching profile row via Prisma.
- * If no profile or is_active is false, signs user out and redirects to /login.
+ * Fast session check (claims verification, no Prisma query).
+ * Used by root app layout to render shell frame immediately.
  */
-export async function getCurrentUser(): Promise<ProfileUser> {
+export const getFastSession = cache(async () => {
   const supabase = await createClient();
   const {
     data: { user },
@@ -26,6 +27,16 @@ export async function getCurrentUser(): Promise<ProfileUser> {
     redirect('/login');
   }
 
+  return user;
+});
+
+/**
+ * Verifies session with supabase.auth.getUser() and loads matching profile row via Prisma.
+ * Cached per request using React cache().
+ */
+export const getCurrentUser = cache(async (): Promise<ProfileUser> => {
+  const user = await getFastSession();
+
   // Load profile from Prisma profiles table
   let profile: any = null;
   try {
@@ -35,6 +46,7 @@ export async function getCurrentUser(): Promise<ProfileUser> {
   }
 
   if (!profile || profile.isActive === false) {
+    const supabase = await createClient();
     await supabase.auth.signOut();
     redirect('/login?error=account_disabled');
   }
@@ -48,4 +60,4 @@ export async function getCurrentUser(): Promise<ProfileUser> {
     isActive: cleanProfile.isActive,
     createdAt: String(cleanProfile.createdAt),
   };
-}
+});

@@ -6,7 +6,12 @@ import {
   getDashboardReminders,
 } from '@/lib/dashboard-query';
 import { getOverdueCount } from '@/lib/reminders';
-import { StatCards } from './stat-cards';
+import {
+  ContactedCard,
+  MeetingsCard,
+  ConversionCard,
+  OverdueCard,
+} from './stat-cards';
 import { SuccessMeter } from './success-meter';
 import { PerformanceChart } from './performance-chart';
 import { UpcomingRemindersCard } from './upcoming-reminders-card';
@@ -22,7 +27,7 @@ interface WidgetBaseProps {
   currentUserId: string;
 }
 
-export async function StatCardsWidget({
+export async function ContactedCardWidget({
   from,
   to,
   prevFrom,
@@ -32,23 +37,79 @@ export async function StatCardsWidget({
   currentUserId,
 }: WidgetBaseProps) {
   const targetUserId = scope === 'mine' ? currentUserId : null;
-  const reminderScope = scope === 'mine' ? 'my' : 'all';
-
-  const [currentStats, prevStats, overdueCount] = await Promise.all([
+  const [currentStats, prevStats] = await Promise.all([
     getDashboardStats({ from, to, userId: targetUserId }),
     getDashboardStats({ from: prevFrom, to: prevTo, userId: targetUserId }),
-    getOverdueCount(currentUserId, reminderScope),
   ]);
 
   return (
-    <StatCards
-      currentStats={currentStats}
-      prevStats={prevStats}
-      overdueCount={overdueCount}
+    <ContactedCard
+      current={currentStats.contacted}
+      prev={prevStats.contacted}
       days={days}
-      scope={scope}
     />
   );
+}
+
+export async function MeetingsCardWidget({
+  from,
+  to,
+  prevFrom,
+  prevTo,
+  days,
+  scope,
+  currentUserId,
+}: WidgetBaseProps) {
+  const targetUserId = scope === 'mine' ? currentUserId : null;
+  const [currentStats, prevStats] = await Promise.all([
+    getDashboardStats({ from, to, userId: targetUserId }),
+    getDashboardStats({ from: prevFrom, to: prevTo, userId: targetUserId }),
+  ]);
+
+  return (
+    <MeetingsCard
+      current={currentStats.meetings}
+      prev={prevStats.meetings}
+      days={days}
+    />
+  );
+}
+
+export async function ConversionCardWidget({
+  from,
+  to,
+  prevFrom,
+  prevTo,
+  days,
+  scope,
+  currentUserId,
+}: WidgetBaseProps) {
+  const targetUserId = scope === 'mine' ? currentUserId : null;
+  const [currentStats, prevStats] = await Promise.all([
+    getDashboardStats({ from, to, userId: targetUserId }),
+    getDashboardStats({ from: prevFrom, to: prevTo, userId: targetUserId }),
+  ]);
+
+  return (
+    <ConversionCard
+      currentStats={currentStats}
+      prevStats={prevStats}
+      days={days}
+    />
+  );
+}
+
+export async function OverdueCardWidget({
+  scope,
+  currentUserId,
+}: {
+  scope: 'mine' | 'all';
+  currentUserId: string;
+}) {
+  const reminderScope = scope === 'mine' ? 'my' : 'all';
+  const overdueCount = await getOverdueCount(currentUserId, reminderScope);
+
+  return <OverdueCard overdueCount={overdueCount} scope={scope} />;
 }
 
 export async function SuccessMeterWidget({

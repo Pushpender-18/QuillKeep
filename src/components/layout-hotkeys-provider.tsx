@@ -1,8 +1,13 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { useHotkeys } from '@/hooks/use-hotkeys';
-import { KeyboardShortcutsModal } from '@/components/keyboard-shortcuts-modal';
+
+const DynamicKeyboardShortcutsModal = dynamic(
+  () => import('@/components/keyboard-shortcuts-modal').then((mod) => ({ default: mod.KeyboardShortcutsModal })),
+  { ssr: false }
+);
 
 export const LayoutHotkeysProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = React.useState(false);
@@ -16,6 +21,9 @@ export const LayoutHotkeysProvider: React.FC<{ children: React.ReactNode }> = ({
     const handleCloseModal = () => setIsShortcutsModalOpen(false);
 
     window.addEventListener('open-keyboard-shortcuts-modal', handleOpenModal);
+    window.addEventListener('preload-keyboard-shortcuts-modal', () => {
+      import('@/components/keyboard-shortcuts-modal');
+    });
     window.addEventListener('close-all-modals', handleCloseModal);
 
     return () => {
@@ -27,10 +35,12 @@ export const LayoutHotkeysProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <>
       {children}
-      <KeyboardShortcutsModal
-        isOpen={isShortcutsModalOpen}
-        onClose={() => setIsShortcutsModalOpen(false)}
-      />
+      {isShortcutsModalOpen && (
+        <DynamicKeyboardShortcutsModal
+          isOpen={isShortcutsModalOpen}
+          onClose={() => setIsShortcutsModalOpen(false)}
+        />
+      )}
     </>
   );
 };

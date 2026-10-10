@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { db } from '@/prisma/db';
 import { prisma } from '@/lib/prisma';
 import { convertBigInts } from '@/lib/utils';
@@ -25,12 +26,13 @@ export interface TeammateActivity {
 
 /**
  * Fetches dashboard stats (contacted, meetings, conversion_rate) from dashboard_stats DB function.
+ * Wrapped in React cache() to prevent duplicated queries across streamed widgets.
  */
-export async function getDashboardStats(params: {
+export const getDashboardStats = cache(async (params: {
   from: Date;
   to: Date;
   userId?: string | null;
-}): Promise<DashboardStatsData> {
+}): Promise<DashboardStatsData> => {
   const { from, to, userId } = params;
   const fromIso = from.toISOString();
   const toIso = to.toISOString();
@@ -68,7 +70,7 @@ export async function getDashboardStats(params: {
     console.error('[GET_DASHBOARD_STATS_ERROR]', err);
     throw err;
   }
-}
+});
 
 /**
  * Fetches daily outreach timeseries from outreach_timeseries DB function.

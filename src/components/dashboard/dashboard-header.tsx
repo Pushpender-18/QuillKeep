@@ -1,10 +1,19 @@
 'use client';
 
-import React from 'react';
+import React, { useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { DateRangePicker } from './date-range-picker';
+import dynamic from 'next/dynamic';
 import { DateRangePreset } from '@/lib/date-range';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const DateRangePickerDynamic = dynamic(
+  () => import('./date-range-picker').then((mod) => ({ default: mod.DateRangePicker })),
+  {
+    loading: () => <Skeleton className="h-9 w-44 rounded-xl" />,
+    ssr: false,
+  }
+);
 
 interface DashboardHeaderProps {
   currentScope: 'mine' | 'all';
@@ -25,15 +34,18 @@ export function DashboardHeader({
 }: DashboardHeaderProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
   const handleScopeChange = (newScope: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('scope', newScope);
-    router.push(`/dashboard?${params.toString()}`);
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('scope', newScope);
+      router.push(`/dashboard?${params.toString()}`);
+    });
   };
 
   return (
-    <div className="flex flex-col gap-3 pb-6 border-b border-white/[0.08]">
+    <div className={`flex flex-col gap-3 pb-6 border-b border-white/[0.08] transition-opacity duration-200 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
       {/* Top row: Title + Right Controls */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
@@ -61,8 +73,8 @@ export function DashboardHeader({
 
           <div className="h-6 w-px bg-white/10 hidden sm:block" />
 
-          {/* Date Range Control */}
-          <DateRangePicker
+          {/* Dynamic Date Range Control */}
+          <DateRangePickerDynamic
             currentPreset={currentPreset}
             currentLabel={currentLabel}
             currentFrom={currentFrom}

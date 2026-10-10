@@ -3,7 +3,7 @@
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { withUser } from '@/lib/db';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { getCustomFieldDefinitions, CustomFieldDefinition } from '@/lib/custom-fields';
 
@@ -71,6 +71,7 @@ export async function createCustomFieldAction(input: {
     });
 
     revalidatePath('/companies');
+    revalidateTag('custom-fields', 'max');
 
     return {
       success: true,
@@ -119,6 +120,7 @@ export async function renameCustomFieldAction(id: string, name: string) {
     });
 
     revalidatePath('/companies');
+    revalidateTag('custom-fields', 'max');
     return { success: true };
   } catch (err: any) {
     console.error('[RENAME_CUSTOM_FIELD_ERROR]', err);
@@ -170,6 +172,7 @@ export async function addCustomFieldOptionsAction(id: string, newOptions: string
     });
 
     revalidatePath('/companies');
+    revalidateTag('custom-fields', 'max');
     return { success: true, options: merged };
   } catch (err: any) {
     console.error('[ADD_CUSTOM_FIELD_OPTIONS_ERROR]', err);
@@ -191,6 +194,7 @@ export async function toggleCustomFieldActiveAction(id: string, isActive: boolea
     });
 
     revalidatePath('/companies');
+    revalidateTag('custom-fields', 'max');
     return { success: true };
   } catch (err: any) {
     console.error('[TOGGLE_CUSTOM_FIELD_ACTIVE_ERROR]', err);

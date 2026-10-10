@@ -54,18 +54,22 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
   const [industrySearch, setIndustrySearch] = React.useState('');
   const [profileSearch, setProfileSearch] = React.useState('');
 
+  const [isPending, startTransition] = React.useTransition();
+
   // Helper to update search params
   const updateParams = (newParams: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (value === null || value === '') {
-        params.delete(key);
-      } else {
-        params.set(key, value);
-      }
+    startTransition(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === null || value === '') {
+          params.delete(key);
+        } else {
+          params.set(key, value);
+        }
+      });
+      params.set('page', '1'); // Reset to page 1 on filter change
+      router.push(`${pathname}?${params.toString()}`);
     });
-    params.set('page', '1'); // Reset to page 1 on filter change
-    router.push(`${pathname}?${params.toString()}`);
   };
 
   // Debounced search handler (300 ms)
