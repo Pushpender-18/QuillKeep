@@ -219,11 +219,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 group ${
-                      isUnread
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 group ${isUnread
                         ? 'bg-[#0A84FF]/10 border-[#0A84FF]/30 hover:bg-[#0A84FF]/15'
                         : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06]'
-                    }`}
+                      }`}
                   >
                     <div className="w-7 h-7 rounded-full bg-[#0A84FF]/20 text-[#0A84FF] flex items-center justify-center shrink-0 mt-0.5">
                       {item.type === 'mention' ? (

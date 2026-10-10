@@ -54,7 +54,7 @@ export default async function CompanyDetailPage({ params }: PageProps) {
   const industryMap = new Map(cleanIndustries.map((i: any) => [String(i.id), String(i.name)]));
   const stateMap = new Map(cleanStates.map((s: any) => [String(s.id), String(s.name)]));
   const profileNameMap: Record<string, string> = {};
-  
+
   cleanProfiles.forEach((p: any) => {
     profileNameMap[String(p.id)] = String(p.fullName || p.email || 'User');
   });

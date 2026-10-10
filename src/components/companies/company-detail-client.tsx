@@ -513,11 +513,10 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
                         key={st}
                         type="button"
                         onClick={() => handleSelectStatus(st)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors text-left ${
-                          currentStatus === st
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors text-left ${currentStatus === st
                             ? 'bg-[#0A84FF]/20 text-white font-semibold'
                             : 'text-[#E4E4E7] hover:bg-white/[0.08]'
-                        }`}
+                          }`}
                       >
                         <StatusPill status={st} />
                         {currentStatus === st && <CheckCircle2 className="w-4 h-4 text-[#0A84FF]" />}
@@ -547,9 +546,8 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
                       key={p}
                       type="button"
                       onClick={() => handleSelectPriority(p)}
-                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                        company.priority === p ? 'bg-white/10 font-semibold' : 'hover:bg-white/[0.08]'
-                      }`}
+                      className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs transition-colors ${company.priority === p ? 'bg-white/10 font-semibold' : 'hover:bg-white/[0.08]'
+                        }`}
                     >
                       <PriorityTag priority={p} />
                       {company.priority === p && <CheckCircle2 className="w-4 h-4 text-[#0A84FF]" />}
@@ -654,284 +652,284 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
             />
           </div>
 
-        {/* RIGHT COLUMN (Info Card, Contacts Card, Audit History Timeline - 5 Cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* 1. Company Profile Card */}
-          <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
-            <h2 className="text-base font-medium text-white border-b border-white/[0.08] pb-3">
-              Company Profile
-            </h2>
+          {/* RIGHT COLUMN (Info Card, Contacts Card, Audit History Timeline - 5 Cols) */}
+          <div className="lg:col-span-5 flex flex-col gap-6">
+            {/* 1. Company Profile Card */}
+            <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+              <h2 className="text-base font-medium text-white border-b border-white/[0.08] pb-3">
+                Company Profile
+              </h2>
 
-            <div className="flex flex-col gap-2.5">
-              <div className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs">
-                <span className="text-[#8E8E93]">Industry</span>
-                <span className="text-white font-medium">{company.industryName || '—'}</span>
-              </div>
+              <div className="flex flex-col gap-2.5">
+                <div className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs">
+                  <span className="text-[#8E8E93]">Industry</span>
+                  <span className="text-white font-medium">{company.industryName || '—'}</span>
+                </div>
 
-              <div className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs">
-                <span className="text-[#8E8E93]">State</span>
-                <span className="text-white font-medium">{company.stateName || '—'}</span>
-              </div>
+                <div className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs">
+                  <span className="text-[#8E8E93]">State</span>
+                  <span className="text-white font-medium">{company.stateName || '—'}</span>
+                </div>
 
-              <div className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs">
-                <span className="text-[#8E8E93]">Location</span>
-                <span className="text-white font-medium">{company.location || '—'}</span>
-              </div>
+                <div className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs">
+                  <span className="text-[#8E8E93]">Location</span>
+                  <span className="text-white font-medium">{company.location || '—'}</span>
+                </div>
 
-              {/* Render custom fields that have values */}
-              {customFieldDefinitions.map((def) => {
-                const val = company.customFields?.[def.id];
-                if (val === undefined || val === null || val === '') return null;
+                {/* Render custom fields that have values */}
+                {customFieldDefinitions.map((def) => {
+                  const val = company.customFields?.[def.id];
+                  if (val === undefined || val === null || val === '') return null;
 
-                const displayVal =
-                  typeof val === 'object' ? JSON.stringify(val) : String(val);
+                  const displayVal =
+                    typeof val === 'object' ? JSON.stringify(val) : String(val);
 
-                return (
-                  <div
-                    key={def.id}
-                    className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs"
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-[#8E8E93] truncate">{def.name}</span>
-                      {!def.isActive && (
-                        <span className="px-1.5 py-0.2 rounded bg-[#FF9F0A]/10 text-[#FF9F0A] text-[10px] font-semibold shrink-0">
-                          Retired
-                        </span>
-                      )}
+                  return (
+                    <div
+                      key={def.id}
+                      className="flex items-center justify-between py-2 px-3 bg-white/[0.03] rounded-lg text-xs"
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[#8E8E93] truncate">{def.name}</span>
+                        {!def.isActive && (
+                          <span className="px-1.5 py-0.2 rounded bg-[#FF9F0A]/10 text-[#FF9F0A] text-[10px] font-semibold shrink-0">
+                            Retired
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-white font-medium truncate max-w-[200px]" title={displayVal}>
+                        {displayVal}
+                      </span>
                     </div>
-                    <span className="text-white font-medium truncate max-w-[200px]" title={displayVal}>
-                      {displayVal}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 2. Contacts Card */}
-          <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <h2 className="text-base font-medium text-white">Company Contacts</h2>
-              {!company.isArchived && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setSelectedContact(null);
-                    setIsContactModalOpen(true);
-                  }}
-                  className="text-xs text-[#0A84FF] hover:bg-[#0A84FF]/10 h-8"
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1" />
-                  Add Contact
-                </Button>
-              )}
+                  );
+                })}
+              </div>
             </div>
 
-            {company.contacts.length === 0 ? (
-              <p className="text-xs text-[#8E8E93] text-center py-6">No contacts added yet.</p>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {company.contacts.map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-3 group hover:border-white/10 transition-colors"
+            {/* 2. Contacts Card */}
+            <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                <h2 className="text-base font-medium text-white">Company Contacts</h2>
+                {!company.isArchived && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setSelectedContact(null);
+                      setIsContactModalOpen(true);
+                    }}
+                    className="text-xs text-[#0A84FF] hover:bg-[#0A84FF]/10 h-8"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Avatar name={contact.name} email={contact.email} size="sm" />
-                      <div className="flex flex-col min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-white truncate">{contact.name}</span>
-                          {contact.isPrimary && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30">
-                              Primary
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Add Contact
+                  </Button>
+                )}
+              </div>
+
+              {company.contacts.length === 0 ? (
+                <p className="text-xs text-[#8E8E93] text-center py-6">No contacts added yet.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {company.contacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-3 group hover:border-white/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar name={contact.name} email={contact.email} size="sm" />
+                        <div className="flex flex-col min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-white truncate">{contact.name}</span>
+                            {contact.isPrimary && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[#0A84FF]/15 text-[#0A84FF] border border-[#0A84FF]/30">
+                                Primary
+                              </span>
+                            )}
+                          </div>
+                          {contact.jobTitle && (
+                            <span className="text-[11px] text-[#8E8E93] truncate flex items-center gap-1">
+                              <Briefcase className="w-3 h-3 shrink-0" />
+                              {contact.jobTitle}
+                            </span>
+                          )}
+                          {contact.email && (
+                            <span className="text-[11px] text-[#8E8E93] truncate flex items-center gap-1">
+                              <Mail className="w-3 h-3 shrink-0" />
+                              {contact.email}
+                            </span>
+                          )}
+                          {contact.phone && (
+                            <span className="text-[11px] text-[#8E8E93] truncate flex items-center gap-1">
+                              <Phone className="w-3 h-3 shrink-0" />
+                              {contact.phone}
                             </span>
                           )}
                         </div>
-                        {contact.jobTitle && (
-                          <span className="text-[11px] text-[#8E8E93] truncate flex items-center gap-1">
-                            <Briefcase className="w-3 h-3 shrink-0" />
-                            {contact.jobTitle}
-                          </span>
-                        )}
-                        {contact.email && (
-                          <span className="text-[11px] text-[#8E8E93] truncate flex items-center gap-1">
-                            <Mail className="w-3 h-3 shrink-0" />
-                            {contact.email}
-                          </span>
-                        )}
-                        {contact.phone && (
-                          <span className="text-[11px] text-[#8E8E93] truncate flex items-center gap-1">
-                            <Phone className="w-3 h-3 shrink-0" />
-                            {contact.phone}
-                          </span>
-                        )}
                       </div>
-                    </div>
 
-                    {!company.isArchived && (
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {!contact.isPrimary && (
+                      {!company.isArchived && (
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {!contact.isPrimary && (
+                            <button
+                              type="button"
+                              onClick={() => handleMakePrimaryContact(contact.id)}
+                              className="p-1 rounded text-[#8E8E93] hover:text-[#0A84FF] hover:bg-white/10 text-xs transition-colors"
+                              title="Make primary contact"
+                            >
+                              <UserCheck className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => handleMakePrimaryContact(contact.id)}
-                            className="p-1 rounded text-[#8E8E93] hover:text-[#0A84FF] hover:bg-white/10 text-xs transition-colors"
-                            title="Make primary contact"
+                            onClick={() => {
+                              setSelectedContact(contact);
+                              setIsContactModalOpen(true);
+                            }}
+                            className="p-1 rounded text-[#8E8E93] hover:text-white hover:bg-white/10 transition-colors"
+                            title="Edit contact"
                           >
-                            <UserCheck className="w-3.5 h-3.5" />
+                            <Edit2 className="w-3.5 h-3.5" />
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedContact(contact);
-                            setIsContactModalOpen(true);
-                          }}
-                          className="p-1 rounded text-[#8E8E93] hover:text-white hover:bg-white/10 transition-colors"
-                          title="Edit contact"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setContactToDelete(contact)}
-                          className="p-1 rounded text-[#8E8E93] hover:text-[#FF453A] hover:bg-white/10 transition-colors"
-                          title="Delete contact"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* 3. History Timeline Card (Read-Only Audit Trail) */}
-          <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
-            <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-medium text-white">History Log</h2>
-                <span title="Audit trail, cannot be edited">
-                  <Lock className="w-3.5 h-3.5 text-[#8E8E93]" />
-                </span>
-              </div>
-              <span className="text-[11px] text-[#8E8E93] bg-white/[0.06] px-2.5 py-0.5 rounded-full font-mono">
-                Audit trail, cannot be edited
-              </span>
+                          <button
+                            type="button"
+                            onClick={() => setContactToDelete(contact)}
+                            className="p-1 rounded text-[#8E8E93] hover:text-[#FF453A] hover:bg-white/10 transition-colors"
+                            title="Delete contact"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {company.historyLogs.length === 0 ? (
-              <p className="text-xs text-[#8E8E93] text-center py-6">No history recorded yet.</p>
-            ) : (
-              <div className="relative flex flex-col pl-4 pt-1">
-                {/* Vertical Spine */}
-                <div className="absolute left-[21px] top-3 bottom-3 w-[2px] bg-white/[0.08]" />
-
-                {company.historyLogs.map((log) => (
-                  <div key={log.id} className="relative flex items-start gap-3 pb-5 group">
-                    <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-[#0A84FF] ring-4 ring-[#161618] flex items-center justify-center shrink-0 mt-0.5" />
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <p className="text-xs text-[#E4E4E7] leading-relaxed">
-                        {renderHistoryText(log)}
-                      </p>
-                      <span className="text-[10px] text-[#8E8E93]">
-                        {formatAuditDateTime(log.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+            {/* 3. History Timeline Card (Read-Only Audit Trail) */}
+            <div className="bg-[#161618] border border-white/[0.08] rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-medium text-white">History Log</h2>
+                  <span title="Audit trail, cannot be edited">
+                    <Lock className="w-3.5 h-3.5 text-[#8E8E93]" />
+                  </span>
+                </div>
+                <span className="text-[11px] text-[#8E8E93] bg-white/[0.06] px-2.5 py-0.5 rounded-full font-mono">
+                  Audit trail, cannot be edited
+                </span>
               </div>
-            )}
+
+              {company.historyLogs.length === 0 ? (
+                <p className="text-xs text-[#8E8E93] text-center py-6">No history recorded yet.</p>
+              ) : (
+                <div className="relative flex flex-col pl-4 pt-1">
+                  {/* Vertical Spine */}
+                  <div className="absolute left-[21px] top-3 bottom-3 w-[2px] bg-white/[0.08]" />
+
+                  {company.historyLogs.map((log) => (
+                    <div key={log.id} className="relative flex items-start gap-3 pb-5 group">
+                      <div className="relative z-10 w-3.5 h-3.5 rounded-full bg-[#0A84FF] ring-4 ring-[#161618] flex items-center justify-center shrink-0 mt-0.5" />
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <p className="text-xs text-[#E4E4E7] leading-relaxed">
+                          {renderHistoryText(log)}
+                        </p>
+                        <span className="text-[10px] text-[#8E8E93]">
+                          {formatAuditDateTime(log.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Mandatory Schedule Follow-up Modal */}
-      {isScheduleModalOpen && pendingStatus && (
-        <ScheduleFollowUpModal
-          isOpen={isScheduleModalOpen}
-          targetStatus={pendingStatus}
-          onConfirm={handleConfirmScheduledStatus}
-          onCancel={handleCancelScheduledStatus}
-          loading={statusLoading}
-        />
-      )}
+        {/* Mandatory Schedule Follow-up Modal */}
+        {isScheduleModalOpen && pendingStatus && (
+          <ScheduleFollowUpModal
+            isOpen={isScheduleModalOpen}
+            targetStatus={pendingStatus}
+            onConfirm={handleConfirmScheduledStatus}
+            onCancel={handleCancelScheduledStatus}
+            loading={statusLoading}
+          />
+        )}
 
-      {/* Edit Company Modal */}
-      {isEditModalOpen && (
-        <AddEditCompanyModal
-          isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            router.refresh();
-          }}
-          initialData={company}
-          industries={industries}
-          states={states}
-          profiles={profiles}
-          customFieldDefinitions={customFieldDefinitions}
-          currentUserId={currentUserId}
-          onOpenManageCustomFields={() => setIsManageCustomFieldsOpen(true)}
-        />
-      )}
+        {/* Edit Company Modal */}
+        {isEditModalOpen && (
+          <AddEditCompanyModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              router.refresh();
+            }}
+            initialData={company}
+            industries={industries}
+            states={states}
+            profiles={profiles}
+            customFieldDefinitions={customFieldDefinitions}
+            currentUserId={currentUserId}
+            onOpenManageCustomFields={() => setIsManageCustomFieldsOpen(true)}
+          />
+        )}
 
-      {/* Manage Custom Fields Modal */}
-      {isManageCustomFieldsOpen && (
-        <ManageCustomFieldsModal
-          isOpen={isManageCustomFieldsOpen}
-          onClose={() => setIsManageCustomFieldsOpen(false)}
-          definitions={customFieldDefinitions}
-          onRefresh={() => router.refresh()}
-        />
-      )}
+        {/* Manage Custom Fields Modal */}
+        {isManageCustomFieldsOpen && (
+          <ManageCustomFieldsModal
+            isOpen={isManageCustomFieldsOpen}
+            onClose={() => setIsManageCustomFieldsOpen(false)}
+            definitions={customFieldDefinitions}
+            onRefresh={() => router.refresh()}
+          />
+        )}
 
-      {/* Archive Confirmation Dialog */}
-      {isArchiveDialogOpen && (
-        <ConfirmDialog
-          isOpen={isArchiveDialogOpen}
-          onClose={() => setIsArchiveDialogOpen(false)}
-          onConfirm={handleArchiveConfirm}
-          title="Archive Company"
-          description="Archiving will hide this company from active lists and disable editing."
-          confirmText="Archive Company"
-          variant="warning"
-          showReasonSelect={true}
-          reasonOptions={[
-            { value: 'Closed down', label: 'Closed down' },
-            { value: 'Duplicate', label: 'Duplicate' },
-            { value: 'Not a fit', label: 'Not a fit' },
-            { value: 'Other', label: 'Other' },
-          ]}
-          showNoteField={true}
-          loading={archiveLoading}
-        />
-      )}
+        {/* Archive Confirmation Dialog */}
+        {isArchiveDialogOpen && (
+          <ConfirmDialog
+            isOpen={isArchiveDialogOpen}
+            onClose={() => setIsArchiveDialogOpen(false)}
+            onConfirm={handleArchiveConfirm}
+            title="Archive Company"
+            description="Archiving will hide this company from active lists and disable editing."
+            confirmText="Archive Company"
+            variant="warning"
+            showReasonSelect={true}
+            reasonOptions={[
+              { value: 'Closed down', label: 'Closed down' },
+              { value: 'Duplicate', label: 'Duplicate' },
+              { value: 'Not a fit', label: 'Not a fit' },
+              { value: 'Other', label: 'Other' },
+            ]}
+            showNoteField={true}
+            loading={archiveLoading}
+          />
+        )}
 
-      {/* Contact Modal (Add/Edit) */}
-      {isContactModalOpen && (
-        <ContactModal
-          isOpen={isContactModalOpen}
-          onClose={() => setIsContactModalOpen(false)}
-          onSubmit={handleSaveContact}
-          initialData={selectedContact}
-        />
-      )}
+        {/* Contact Modal (Add/Edit) */}
+        {isContactModalOpen && (
+          <ContactModal
+            isOpen={isContactModalOpen}
+            onClose={() => setIsContactModalOpen(false)}
+            onSubmit={handleSaveContact}
+            initialData={selectedContact}
+          />
+        )}
 
-      {/* Delete Contact Confirm Dialog */}
-      {Boolean(contactToDelete) && (
-        <ConfirmDialog
-          isOpen={Boolean(contactToDelete)}
-          onClose={() => setContactToDelete(null)}
-          onConfirm={handleDeleteContactConfirm}
-          title="Delete Contact"
-          description={`Are you sure you want to delete ${contactToDelete?.name}?`}
-          confirmText="Delete Contact"
-          variant="danger"
-          loading={deleteContactLoading}
-        />
-      )}
+        {/* Delete Contact Confirm Dialog */}
+        {Boolean(contactToDelete) && (
+          <ConfirmDialog
+            isOpen={Boolean(contactToDelete)}
+            onClose={() => setContactToDelete(null)}
+            onConfirm={handleDeleteContactConfirm}
+            title="Delete Contact"
+            description={`Are you sure you want to delete ${contactToDelete?.name}?`}
+            confirmText="Delete Contact"
+            variant="danger"
+            loading={deleteContactLoading}
+          />
+        )}
       </div>
     </PresenceProvider>
   );
