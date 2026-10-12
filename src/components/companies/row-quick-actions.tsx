@@ -70,26 +70,24 @@ export const RowQuickActions: React.FC<RowQuickActionsProps> = ({
 
   if (isArchived) {
     return (
-      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-end gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           onClick={() => onRestoreCompany && onRestoreCompany(companyId)}
-          className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity h-7 px-2 text-[11px] flex items-center gap-1 rounded bg-[#30D158]/15 border border-[#30D158]/30 text-[#30D158] hover:bg-[#30D158]/25 font-medium cursor-pointer"
+          className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all w-8 h-8 rounded-lg flex items-center justify-center bg-[#30D158]/15 border border-[#30D158]/30 text-[#30D158] hover:bg-[#30D158]/25 hover:border-[#30D158]/50 cursor-pointer shadow-sm"
           title="Restore company"
           aria-label="Restore company"
         >
-          <RotateCcw className="w-3 h-3" />
-          <span>Restore</span>
+          <RotateCcw className="w-4 h-4" />
         </button>
         <button
           type="button"
           onClick={() => onDeletePermanently && onDeletePermanently(companyId, companyName)}
-          className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity h-7 px-2 text-[11px] flex items-center gap-1 rounded bg-[#FF453A]/15 border border-[#FF453A]/30 text-[#FF453A] hover:bg-[#FF453A]/25 font-medium cursor-pointer"
+          className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-all w-8 h-8 rounded-lg flex items-center justify-center bg-[#FF453A]/15 border border-[#FF453A]/30 text-[#FF453A] hover:bg-[#FF453A]/25 hover:border-[#FF453A]/50 cursor-pointer shadow-sm"
           title="Delete permanently"
           aria-label="Delete permanently"
         >
-          <Trash2 className="w-3 h-3" />
-          <span>Delete permanently</span>
+          <Trash2 className="w-4 h-4" />
         </button>
       </div>
     );

@@ -489,11 +489,11 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
                   </th>
 
                   {/* Assigned To */}
-                  <th className="w-[12%] px-3">Assigned To</th>
+                  <th className={`${currentView === 'archived' ? 'w-[11%]' : 'w-[12%]'} px-3`}>Assigned To</th>
 
                   {/* Last Contacted / Archive Reason */}
                   {currentView === 'archived' ? (
-                    <th className="w-[11%] px-3">Archive Reason</th>
+                    <th className="w-[14%] px-3">Archive Reason</th>
                   ) : (
                     <th
                       onClick={() => handleToggleSort('last_contact')}
