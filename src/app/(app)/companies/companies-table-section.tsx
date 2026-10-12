@@ -1,25 +1,61 @@
 import React from 'react';
+import { after } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { convertBigInts } from '@/lib/utils';
 import { buildCompanyWhere } from '@/lib/companies-query';
-import { getCustomFieldDefinitionsCached, getIndustries, getStates, getProfiles } from '@/lib/lookups';
+import { getCustomFieldDefinitionsCached, getIndustries, getRankedIndustries, getStates, getProfiles } from '@/lib/lookups';
 import { CompaniesListClient, CompanyListRow } from '@/components/companies/companies-list-client';
 
 interface CompaniesTableSectionProps {
   searchParams: Promise<Record<string, string | undefined>>;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function CompaniesTableSection({ searchParams }: CompaniesTableSectionProps) {
-  const [user, params, cleanIndustries, cleanStates, cleanProfiles, customFieldDefinitions] =
+  const [user, params, cleanIndustries, rankedIndustries, cleanStates, cleanProfiles, customFieldDefinitions] =
     await Promise.all([
       getCurrentUser(),
       searchParams,
       getIndustries(),
+      getRankedIndustries(),
       getStates(),
       getProfiles(),
       getCustomFieldDefinitionsCached(),
     ]);
+
+  // Record industry filter use if industry param is present
+  const rawIndustryParam = params.industry;
+  if (rawIndustryParam) {
+    const rawTokens = rawIndustryParam.split(',').map((s) => s.trim()).filter(Boolean);
+    const resolvedIds: string[] = [];
+    const nameToIdMap = new Map(cleanIndustries.map((ind) => [ind.name.trim().toLowerCase(), ind.id]));
+
+    for (const token of rawTokens) {
+      if (UUID_REGEX.test(token)) {
+        resolvedIds.push(token);
+      } else {
+        const idFromName = nameToIdMap.get(token.toLowerCase());
+        if (idFromName && UUID_REGEX.test(idFromName)) {
+          resolvedIds.push(idFromName);
+        }
+      }
+    }
+
+    const uniqueValidIds = Array.from(new Set(resolvedIds)).slice(0, 20);
+
+    if (uniqueValidIds.length > 0) {
+      after(async () => {
+        try {
+          await prisma.$executeRaw`select record_industry_filter_use(${user.id}::uuid, ${uniqueValidIds}::uuid[])`;
+        } catch (err: any) {
+          console.error('[RECORD_INDUSTRY_FILTER_USE_ERROR]', err?.code || 'UNKNOWN');
+        }
+      });
+    }
+  }
+
 
   const view = (params.view === 'archived' ? 'archived' : 'active') as 'active' | 'archived';
   const scope = (params.scope === 'all' ? 'all' : 'my') as 'my' | 'all';
@@ -124,7 +160,7 @@ export async function CompaniesTableSection({ searchParams }: CompaniesTableSect
       currentScope={scope}
       currentSort={sort}
       currentDir={dir}
-      industries={cleanIndustries}
+      industries={rankedIndustries}
       states={cleanStates}
       profiles={cleanProfiles}
       customFieldDefinitions={customFieldDefinitions}

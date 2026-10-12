@@ -41,6 +41,27 @@ export const getIndustries = unstable_cache(
   { tags: ['industries'], revalidate: 300 }
 );
 
+export const getRankedIndustries = unstable_cache(
+  async (): Promise<CleanIndustry[]> => {
+    try {
+      const rows = await prisma.$queryRaw`select * from industries_ranked(90)`;
+      return rows.map((r: any) => ({
+        id: String(r.id),
+        name: String(r.name),
+        isActive: r.is_active === true || r.is_active === 't' || r.is_active === 1 || r.is_active === 'true',
+        uses: typeof r.uses === 'bigint' ? Number(r.uses) : Number(r.uses ?? 0),
+        companyCount: typeof r.company_count === 'bigint' ? Number(r.company_count) : Number(r.company_count ?? 0),
+      }));
+    } catch (err) {
+      console.error('[GET_RANKED_INDUSTRIES_LOOKUP_ERROR]', err);
+      return [];
+    }
+  },
+  ['industry-ranking'],
+  { tags: ['industry-ranking'], revalidate: 60 }
+);
+
+
 export const getStates = unstable_cache(
   async (): Promise<CleanState[]> => {
     try {
