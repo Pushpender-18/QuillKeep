@@ -12,6 +12,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ScheduleFollowUpModal } from '@/components/companies/schedule-follow-up-modal';
 import { AddEditCompanyModal } from '@/components/companies/add-edit-company-modal';
 import { ContactModal } from '@/components/companies/contact-modal';
+import { DeleteArchivedCompaniesModal } from '@/components/companies/delete-company-modal';
 import { Toast } from '@/components/ui/toast';
 import {
   changeCompanyStatusAction,
@@ -153,6 +154,9 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
 
   // Restore Loading
   const [restoreLoading, setRestoreLoading] = React.useState(false);
+
+  // Permanent Delete Modal State (Archived only)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   // Contact Modal State
   const [isContactModalOpen, setIsContactModalOpen] = React.useState(false);
@@ -451,15 +455,26 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
                 </p>
               </div>
             </div>
-            <Button
-              size="sm"
-              onClick={handleRestore}
-              disabled={restoreLoading}
-              className="bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white shrink-0"
-            >
-              <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
-              {restoreLoading ? 'Restoring...' : 'Restore Company'}
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                onClick={handleRestore}
+                disabled={restoreLoading}
+                className="bg-[#0A84FF] hover:bg-[#0A84FF]/90 text-white"
+              >
+                <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+                {restoreLoading ? 'Restoring...' : 'Restore Company'}
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                onClick={() => setIsDeleteDialogOpen(true)}
+                className="bg-[#FF453A] hover:bg-[#D73A31] text-white"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-1.5" />
+                Delete permanently
+              </Button>
+            </div>
           </div>
         )}
 
@@ -928,6 +943,31 @@ export const CompanyDetailClient: React.FC<CompanyDetailClientProps> = ({
             confirmText="Delete Contact"
             variant="danger"
             loading={deleteContactLoading}
+          />
+        )}
+
+        {/* Permanent Delete Modal for Archived Company */}
+        {isDeleteDialogOpen && (
+          <DeleteArchivedCompaniesModal
+            isOpen={isDeleteDialogOpen}
+            ids={[company.id]}
+            singleCompanyName={company.name}
+            onClose={() => setIsDeleteDialogOpen(false)}
+            onSuccess={(deletedCount, skippedCount) => {
+              setIsDeleteDialogOpen(false);
+              window.dispatchEvent(new CustomEvent('refresh-notifications'));
+              sessionStorage.setItem(
+                'flash_toast',
+                JSON.stringify({
+                  type: 'success',
+                  msg: `Deleted 1 company`,
+                })
+              );
+              router.push('/companies?view=archived');
+            }}
+            onError={(msg) => {
+              setToastMessage({ type: 'error', msg });
+            }}
           />
         )}
       </div>

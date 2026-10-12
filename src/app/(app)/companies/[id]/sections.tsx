@@ -12,7 +12,13 @@ interface DetailSectionProps {
   id: string;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function CompanyDetailHeaderSection({ id }: DetailSectionProps) {
+  if (!UUID_REGEX.test(id)) {
+    notFound();
+  }
+
   const [user, rawCompany, cleanProfiles, customFieldDefinitions] = await Promise.all([
     getCurrentUser(),
     prisma.orm.public.Companies.where({ id }).first(),
@@ -27,6 +33,10 @@ export async function CompanyDetailHeaderSection({ id }: DetailSectionProps) {
 }
 
 export async function CompanyDetailFullView({ id }: { id: string }) {
+  if (!UUID_REGEX.test(id)) {
+    notFound();
+  }
+
   const [
     user,
     rawCompany,
@@ -82,9 +92,9 @@ export async function CompanyDetailFullView({ id }: { id: string }) {
     id: String(cleanCompany.id),
     name: String(cleanCompany.name),
     industryId: cleanCompany.industryId ? String(cleanCompany.industryId) : null,
-    industryName: cleanCompany.industryId ? industryMap.get(String(cleanCompany.industryId)) || null : null,
+    industryName: cleanCompany.industryId ? (industryMap.get(String(cleanCompany.industryId)) ?? null) : null,
     stateId: cleanCompany.stateId ? String(cleanCompany.stateId) : null,
-    stateName: cleanCompany.stateId ? stateMap.get(String(cleanCompany.stateId)) || null : null,
+    stateName: cleanCompany.stateId ? (stateMap.get(String(cleanCompany.stateId)) ?? null) : null,
     location: cleanCompany.location ? String(cleanCompany.location) : null,
     status: cleanCompany.status,
     priority: cleanCompany.priority,

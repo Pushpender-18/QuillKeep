@@ -84,6 +84,17 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     };
   }, [currentUserId, refetchNotifications]);
 
+  // Listen to refresh-notifications event
+  React.useEffect(() => {
+    const handleRefresh = () => {
+      refetchNotifications();
+    };
+    window.addEventListener('refresh-notifications', handleRefresh);
+    return () => {
+      window.removeEventListener('refresh-notifications', handleRefresh);
+    };
+  }, [refetchNotifications]);
+
   // Click outside & Esc handler
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

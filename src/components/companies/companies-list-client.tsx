@@ -15,6 +15,7 @@ import { RowQuickActions } from '@/components/companies/row-quick-actions';
 import { BulkActionsBar } from '@/components/companies/bulk-actions-bar';
 import { ImportExportModal } from '@/components/import-export/import-export-modal';
 import { ReminderModal } from '@/components/reminders/reminder-modal';
+import { DeleteArchivedCompaniesModal } from '@/components/companies/delete-company-modal';
 import { restoreCompanyAction } from '@/app/actions/companies';
 import { getMatchingCompanyIdsAction } from '@/app/actions/bulk-companies';
 import { Toast } from '@/components/ui/toast';
@@ -90,12 +91,36 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
   const [toastMessage, setToastMessage] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [restoringId, setRestoringId] = React.useState<string | null>(null);
 
+  // Permanent Delete Modal state
+  const [deleteModalConfig, setDeleteModalConfig] = React.useState<{
+    isOpen: boolean;
+    ids: string[];
+    singleCompanyName?: string;
+  }>({
+    isOpen: false,
+    ids: [],
+  });
+
   // Clear selection whenever search, filters, scope or view changes
   const searchParamsString = searchParams.toString();
   React.useEffect(() => {
     setSelectedIds([]);
     setIsAllMatchingSelected(false);
   }, [searchParamsString, currentView, currentScope]);
+
+  // Check for flash_toast from other pages (e.g. redirected after delete)
+  React.useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('flash_toast');
+      if (stored) {
+        sessionStorage.removeItem('flash_toast');
+        const parsed = JSON.parse(stored);
+        if (parsed?.msg) {
+          setToastMessage({ type: parsed.type || 'success', msg: parsed.msg });
+        }
+      }
+    } catch {}
+  }, [pathname, searchParamsString]);
 
   // Handle ?new=1 & hotkeys custom event
   React.useEffect(() => {
@@ -216,18 +241,23 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
       rawParamsObj[k] = v;
     });
 
-    const res = await getMatchingCompanyIdsAction(rawParamsObj);
+    const res = await getMatchingCompanyIdsAction(
+      rawParamsObj,
+      currentView === 'archived' ? { overrideView: 'archived' } : undefined
+    );
     setIsLoadingAllMatching(false);
 
     if (res.success && res.ids) {
-      setSelectedIds(res.ids);
-      setIsAllMatchingSelected(true);
       if (res.hasMoreThan500) {
         setToastMessage({
           type: 'error',
-          msg: `Selected first 500 matching companies (capped at 500 maximum).`,
+          msg: `More than 500 companies match (${res.totalCount} total). Selection is capped at 500 maximum. Kept current page selection.`,
         });
+        // keep current page selection
+        return;
       }
+      setSelectedIds(res.ids);
+      setIsAllMatchingSelected(true);
     } else {
       setToastMessage({ type: 'error', msg: res.error || 'Failed to select all matching' });
     }
@@ -571,6 +601,13 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
                           profiles={profiles}
                           onOpenReminderModal={(cId) => setReminderModalCompanyId(cId)}
                           onRestoreCompany={(cId) => handleRestore(cId)}
+                          onDeletePermanently={(cId, cName) =>
+                            setDeleteModalConfig({
+                              isOpen: true,
+                              ids: [cId],
+                              singleCompanyName: cName,
+                            })
+                          }
                           onSuccessToast={(msg) => setToastMessage({ type: 'success', msg })}
                           onErrorToast={(msg) => setToastMessage({ type: 'error', msg })}
                         />
@@ -628,12 +665,53 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
         currentView={currentView}
         profiles={profiles}
         onOpenExportModal={() => setIsImportExportOpen(true)}
+        onOpenDeleteModal={() =>
+          setDeleteModalConfig({
+            isOpen: true,
+            ids: selectedIds,
+          })
+        }
         onSuccess={(msg) => {
           setToastMessage({ type: 'success', msg });
           router.refresh();
         }}
         onError={(msg) => setToastMessage({ type: 'error', msg })}
       />
+
+      {/* Permanent Delete Modal for Archived Companies */}
+      {deleteModalConfig.isOpen && (
+        <DeleteArchivedCompaniesModal
+          isOpen={deleteModalConfig.isOpen}
+          ids={deleteModalConfig.ids}
+          singleCompanyName={deleteModalConfig.singleCompanyName}
+          onClose={() =>
+            setDeleteModalConfig({
+              isOpen: false,
+              ids: [],
+            })
+          }
+          onExportFirst={() => {
+            setIsImportExportOpen(true);
+          }}
+          onSuccess={(deletedCount, skippedCount) => {
+            const skippedNote =
+              skippedCount > 0 ? ` (${skippedCount} skipped because they were restored)` : '';
+            setToastMessage({
+              type: 'success',
+              msg: `Deleted ${deletedCount} ${deletedCount === 1 ? 'company' : 'companies'}${skippedNote}`,
+            });
+            setSelectedIds([]);
+            setIsAllMatchingSelected(false);
+            setDeleteModalConfig({ isOpen: false, ids: [] });
+            window.dispatchEvent(new CustomEvent('refresh-notifications'));
+            router.refresh();
+          }}
+          onError={(errorMsg) => {
+            // Keep the selection and the modal open with the error
+            setToastMessage({ type: 'error', msg: errorMsg });
+          }}
+        />
+      )}
 
       {/* Add / Edit Company Modal */}
       <AddEditCompanyModal

@@ -33,6 +33,7 @@ import {
   Search,
   Bell,
   Info,
+  Trash2,
 } from 'lucide-react';
 
 export interface BulkActionsBarProps {
@@ -44,6 +45,7 @@ export interface BulkActionsBarProps {
   currentView: 'active' | 'archived';
   profiles: ProfileOption[];
   onOpenExportModal: () => void;
+  onOpenDeleteModal?: () => void;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
 }
@@ -57,6 +59,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
   currentView,
   profiles,
   onOpenExportModal,
+  onOpenDeleteModal,
   onSuccess,
   onError,
 }) => {
@@ -287,6 +290,16 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             >
               <Download className="w-3.5 h-3.5 text-[#BF5AF2]" />
               Export
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onOpenDeleteModal}
+              className="h-8 px-3 text-xs text-[#FF453A] hover:bg-[#FF453A]/10 flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete permanently
             </Button>
           </div>
         )}

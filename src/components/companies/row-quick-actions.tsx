@@ -5,7 +5,7 @@ import { LeadStatus, StatusPill } from '@/components/ui/status-pill';
 import { changeCompanyStatusAction } from '@/app/actions/companies';
 import { createRemarkAction } from '@/app/actions/remarks';
 import { ScheduleFollowUpModal } from '@/components/companies/schedule-follow-up-modal';
-import { Check, Edit3, Bell, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Check, Edit3, Bell, CheckCircle2, RotateCcw, Trash2 } from 'lucide-react';
 import { ProfileOption } from '@/components/ui/select-with-avatars';
 
 export interface RowQuickActionsProps {
@@ -16,6 +16,7 @@ export interface RowQuickActionsProps {
   profiles: ProfileOption[];
   onOpenReminderModal: (companyId: string) => void;
   onRestoreCompany?: (companyId: string) => void;
+  onDeletePermanently?: (companyId: string, companyName: string) => void;
   onSuccessToast: (msg: string) => void;
   onErrorToast: (msg: string) => void;
 }
@@ -28,6 +29,7 @@ export const RowQuickActions: React.FC<RowQuickActionsProps> = ({
   profiles,
   onOpenReminderModal,
   onRestoreCompany,
+  onDeletePermanently,
   onSuccessToast,
   onErrorToast,
 }) => {
@@ -68,15 +70,26 @@ export const RowQuickActions: React.FC<RowQuickActionsProps> = ({
 
   if (isArchived) {
     return (
-      <div className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
         <button
           type="button"
           onClick={() => onRestoreCompany && onRestoreCompany(companyId)}
           className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity h-7 px-2 text-[11px] flex items-center gap-1 rounded bg-[#30D158]/15 border border-[#30D158]/30 text-[#30D158] hover:bg-[#30D158]/25 font-medium cursor-pointer"
           title="Restore company"
+          aria-label="Restore company"
         >
           <RotateCcw className="w-3 h-3" />
           <span>Restore</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onDeletePermanently && onDeletePermanently(companyId, companyName)}
+          className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity h-7 px-2 text-[11px] flex items-center gap-1 rounded bg-[#FF453A]/15 border border-[#FF453A]/30 text-[#FF453A] hover:bg-[#FF453A]/25 font-medium cursor-pointer"
+          title="Delete permanently"
+          aria-label="Delete permanently"
+        >
+          <Trash2 className="w-3 h-3" />
+          <span>Delete permanently</span>
         </button>
       </div>
     );
