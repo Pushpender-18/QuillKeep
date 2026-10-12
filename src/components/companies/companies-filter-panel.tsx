@@ -15,7 +15,6 @@ export interface FilterOption {
 }
 
 export interface CompaniesFilterPanelProps {
-  totalCount: number;
   currentScope: 'my' | 'all';
   industries: FilterOption[];
   states: FilterOption[];
@@ -25,7 +24,6 @@ export interface CompaniesFilterPanelProps {
 }
 
 export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
-  totalCount,
   currentScope,
   industries,
   states,
@@ -239,10 +237,7 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
           )}
         </div>
 
-        {/* Results Counter */}
-        <div className="text-xs text-[#8E8E93] font-medium">
-          <span className="text-white font-semibold">{totalCount}</span> companies match
-        </div>
+
       </div>
 
       {/* Row of Pill Dropdowns */}

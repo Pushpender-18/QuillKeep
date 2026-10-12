@@ -100,6 +100,92 @@ export function TableSkeleton({ rowCount = 10 }: { rowCount?: number }) {
   );
 }
 
+/**
+ * Skeleton for only the table body rows + pagination — no card wrapper, no thead.
+ * Used as the fallback inside the keyed <Suspense> on /companies so the card
+ * frame, column headers, and all controls remain visible while data loads.
+ *
+ * Column widths match the real companies table:
+ *   checkbox 48px | name 22% | industry 13% | location 13% | status 13% |
+ *   priority 10% | assigned 12% | last-contacted 11% | actions 96px
+ */
+export function TableBodySkeleton({ rowCount = 10 }: { rowCount?: number }) {
+  return (
+    <div className="w-full bg-[#141417] border border-[#242428] rounded-xl overflow-hidden shadow-xl">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
+          {/* Invisible thead to preserve column widths — matches real table exactly */}
+          <colgroup>
+            <col className="w-12" />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '11%' }} />
+            <col className="w-24" />
+          </colgroup>
+          <tbody className="divide-y divide-[#242428]">
+            {Array.from({ length: rowCount }).map((_, i) => (
+              <tr key={i} className="h-14">
+                {/* Checkbox */}
+                <td className="px-3 text-center">
+                  <Skeleton className="w-4 h-4 rounded mx-auto" />
+                </td>
+                {/* Company Name */}
+                <td className="px-3.5">
+                  <Skeleton className="h-4 w-32" />
+                </td>
+                {/* Industry */}
+                <td className="px-3.5">
+                  <Skeleton className="h-4 w-20" />
+                </td>
+                {/* Location */}
+                <td className="px-3">
+                  <Skeleton className="h-4 w-16" />
+                </td>
+                {/* Status */}
+                <td className="px-3">
+                  <Skeleton className="h-6 w-24 rounded-full" />
+                </td>
+                {/* Priority */}
+                <td className="px-3">
+                  <Skeleton className="h-5 w-14 rounded" />
+                </td>
+                {/* Assigned To */}
+                <td className="px-3">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="w-6 h-6 rounded-full shrink-0" />
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                </td>
+                {/* Last Contacted */}
+                <td className="px-3">
+                  <Skeleton className="h-4 w-20" />
+                </td>
+                {/* Actions */}
+                <td className="px-2 pr-3">
+                  <Skeleton className="h-7 w-16 rounded-lg ml-auto" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {/* Pagination footer skeleton */}
+      <div className="h-12 px-4 bg-[#18181B] border-t border-[#26262A] flex items-center justify-between">
+        <Skeleton className="h-3 w-48" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-7 w-16 rounded" />
+          <Skeleton className="h-4 w-16" />
+          <Skeleton className="h-7 w-10 rounded" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ReminderListSkeleton({ count = 5 }: { count?: number }) {
   return (
     <div className="bg-[#161618] border border-white/[0.08] p-6 rounded-2xl flex flex-col gap-4">

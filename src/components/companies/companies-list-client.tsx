@@ -356,7 +356,6 @@ export const CompaniesListClient: React.FC<CompaniesListClientProps> = ({
 
       {/* Search & Filters Panel Component */}
       <CompaniesFilterPanel
-        totalCount={totalCount}
         currentScope={currentScope}
         industries={industries}
         states={states}
