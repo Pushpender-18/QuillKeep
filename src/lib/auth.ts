@@ -38,11 +38,11 @@ export const getCurrentUser = cache(async (): Promise<ProfileUser> => {
   const user = await getFastSession();
 
   // Load profile from Prisma profiles table
-  let profile: any = null;
+  let profile: { id: string | bigint; fullName: string; email: string; isActive: boolean; createdAt: string | Date } | null = null;
   try {
     profile = await prisma.orm.public.Profiles.where({ id: user.id }).first();
-  } catch (err: any) {
-    console.error('[AUTH GET_CURRENT_USER] Error querying Prisma profiles table:', err?.message || err);
+  } catch (err: unknown) {
+    console.error('[AUTH GET_CURRENT_USER] Error querying Prisma profiles table:', err);
   }
 
   if (!profile || profile.isActive === false) {

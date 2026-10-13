@@ -23,7 +23,7 @@ export interface CompaniesControlsProps {
   states: FilterOption[];
   profiles: (ProfileOption & { isActive?: boolean })[];
   customFieldDefinitions: CustomFieldDefinition[];
-  currentUserId: string;
+  currentUserId?: string;
   /** The keyed <Suspense> containing <CompaniesListRows /> — passed in from the server shell */
   listSlot: React.ReactNode;
 }
@@ -59,7 +59,7 @@ function CompaniesControlsInner({
   states,
   profiles,
   customFieldDefinitions,
-  currentUserId,
+  currentUserId: propUserId,
   listSlot,
 }: CompaniesControlsProps) {
   const router = useRouter();
@@ -74,7 +74,12 @@ function CompaniesControlsInner({
     totalMatchingCount,
     triggerBulkDelete,
     handleSelectAllMatching,
+    currentUserId: contextUserId,
+    optimisticParams,
+    updateParams,
   } = useCompaniesSelection();
+
+  const currentUserId = propUserId || contextUserId || '';
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false);
@@ -107,7 +112,9 @@ function CompaniesControlsInner({
         sessionStorage.removeItem('flash_toast');
         const parsed = JSON.parse(stored);
         if (parsed?.msg) {
-          setToastMessage({ type: parsed.type || 'success', msg: parsed.msg });
+          queueMicrotask(() => {
+            setToastMessage({ type: parsed.type || 'success', msg: parsed.msg });
+          });
         }
       }
     } catch {}
@@ -116,7 +123,9 @@ function CompaniesControlsInner({
   // Handle ?new=1 & hotkeys custom event
   React.useEffect(() => {
     if (searchParams.get('new') === '1') {
-      setIsAddModalOpen(true);
+      queueMicrotask(() => {
+        setIsAddModalOpen(true);
+      });
       const params = new URLSearchParams(searchParams.toString());
       params.delete('new');
       router.replace(`${pathname}?${params.toString()}`);
@@ -127,27 +136,11 @@ function CompaniesControlsInner({
     return () => window.removeEventListener('trigger-add-company', handleTriggerAddCompany);
   }, [searchParams, pathname, router]);
 
-  // Read current view/scope from URL (client-side, always up-to-date)
-  const currentView = (searchParams.get('view') === 'archived' ? 'archived' : 'active') as
+  // Read current view/scope from optimistic URL state (shows in same frame as click)
+  const currentView = (optimisticParams.view === 'archived' ? 'archived' : 'active') as
     | 'active'
     | 'archived';
-  const currentScope = (searchParams.get('scope') === 'all' ? 'all' : 'my') as 'my' | 'all';
-
-  // Helper to update search params
-  const updateParams = React.useCallback(
-    (newParams: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      Object.entries(newParams).forEach(([key, value]) => {
-        if (value === null) {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      });
-      router.push(`${pathname}?${params.toString()}`);
-    },
-    [searchParams, pathname, router]
-  );
+  const currentScope = (optimisticParams.scope === 'all' ? 'all' : 'my') as 'my' | 'all';
 
   const filterProfiles = profiles.map((p) => ({
     id: p.id,

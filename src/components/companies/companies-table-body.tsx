@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { StatusPill, LeadStatus } from '@/components/ui/status-pill';
 import { PriorityTag } from '@/components/ui/priority-tag';
 import { Avatar } from '@/components/ui/avatar';
@@ -57,7 +57,6 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
   currentUserId,
 }) => {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const {
@@ -68,7 +67,17 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
     setTotalMatchingCount,
     setTriggerBulkDelete,
     setHandleSelectAllMatching,
+    setCurrentUserId,
+    optimisticParams,
+    updateParams,
   } = useCompaniesSelection();
+
+  // Report currentUserId to context so modals outside keyed boundary can use it
+  React.useEffect(() => {
+    if (currentUserId) {
+      setCurrentUserId(currentUserId);
+    }
+  }, [currentUserId, setCurrentUserId]);
 
   const [isLoadingAllMatching, setIsLoadingAllMatching] = React.useState(false);
   const [toastMessage, setToastMessage] = React.useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -106,30 +115,21 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
   // Register the bulk-delete trigger with the context
   React.useEffect(() => {
     setTriggerBulkDelete(() => {
-      setDeleteModalConfig((prev) => ({
+      setDeleteModalConfig({
         isOpen: true,
         ids: selectedIds,
-      }));
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds]);
 
-  // Helper to update search params
-  const updateParams = (newParams: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (value === null) {
-        params.delete(key);
-      } else {
-        params.set(key, value);
-      }
-    });
-    router.push(`${pathname}?${params.toString()}`);
-  };
+  const effectiveSort = (optimisticParams.sort === 'last_contact' || optimisticParams.sort === 'priority' ? optimisticParams.sort : currentSort) as 'name' | 'last_contact' | 'priority';
+  const effectiveDir = (optimisticParams.dir === 'desc' || optimisticParams.dir === 'asc' ? optimisticParams.dir : currentDir) as 'asc' | 'desc';
+  const effectivePage = optimisticParams.page ? Math.max(1, parseInt(optimisticParams.page, 10)) : currentPage;
 
   const handleToggleSort = (column: 'name' | 'last_contact' | 'priority') => {
-    if (currentSort === column) {
-      const nextDir = currentDir === 'asc' ? 'desc' : 'asc';
+    if (effectiveSort === column) {
+      const nextDir = effectiveDir === 'asc' ? 'desc' : 'asc';
       updateParams({ sort: column, dir: nextDir, page: '1' });
     } else {
       updateParams({ sort: column, dir: 'asc', page: '1' });
@@ -149,19 +149,20 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
   };
 
   const handleClearAllFilters = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('q');
-    params.delete('status');
-    params.delete('state');
-    params.delete('industry');
-    params.delete('assigned');
-    params.delete('priority');
-    params.delete('location');
-    Array.from(params.keys()).forEach((key) => {
-      if (key.startsWith('cf_')) params.delete(key);
+    const updates: Record<string, string | null> = {
+      q: null,
+      status: null,
+      state: null,
+      industry: null,
+      assigned: null,
+      priority: null,
+      location: null,
+      page: '1',
+    };
+    Object.keys(optimisticParams).forEach((key) => {
+      if (key.startsWith('cf_')) updates[key] = null;
     });
-    params.set('page', '1');
-    router.push(`${pathname}?${params.toString()}`);
+    updateParams(updates);
   };
 
   // Selection Logic
@@ -236,12 +237,12 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
   const totalPages = Math.ceil(totalCount / pageSize);
 
   const getSortIcon = (column: 'name' | 'last_contact' | 'priority') => {
-    if (currentSort !== column) {
+    if (effectiveSort !== column) {
       return (
         <ArrowUpDown className="w-3.5 h-3.5 text-[#52525B] opacity-0 group-hover:opacity-100 transition-opacity ml-1" />
       );
     }
-    return currentDir === 'asc' ? (
+    return effectiveDir === 'asc' ? (
       <ArrowUp className="w-3.5 h-3.5 text-[#0A84FF] ml-1" />
     ) : (
       <ArrowDown className="w-3.5 h-3.5 text-[#0A84FF] ml-1" />
@@ -249,14 +250,14 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
   };
 
   const hasActiveFilters =
-    Boolean(searchParams.get('q')) ||
-    Boolean(searchParams.get('status')) ||
-    Boolean(searchParams.get('state')) ||
-    Boolean(searchParams.get('industry')) ||
-    Boolean(searchParams.get('assigned')) ||
-    Boolean(searchParams.get('priority')) ||
-    Boolean(searchParams.get('location')) ||
-    Array.from(searchParams.keys()).some((k) => k.startsWith('cf_'));
+    Boolean(optimisticParams.q) ||
+    Boolean(optimisticParams.status) ||
+    Boolean(optimisticParams.state) ||
+    Boolean(optimisticParams.industry) ||
+    Boolean(optimisticParams.assigned) ||
+    Boolean(optimisticParams.priority) ||
+    Boolean(optimisticParams.location) ||
+    Object.keys(optimisticParams).some((k) => k.startsWith('cf_'));
 
   // Map for ReminderModal options
   const reminderCompaniesOptions = companies.map((c) => ({
@@ -452,12 +453,12 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
 
                       {/* Status Pill */}
                       <td className="px-3">
-                        <StatusPill status={c.status as any} />
+                        <StatusPill status={c.status as LeadStatus} />
                       </td>
 
                       {/* Priority Tag */}
                       <td className="px-3">
-                        <PriorityTag priority={c.priority as any} />
+                        <PriorityTag priority={c.priority as 'low' | 'medium' | 'high'} />
                       </td>
 
                       {/* Assigned To Avatar */}
@@ -524,8 +525,8 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
           {/* Table Footer: Server-Side Pagination */}
           <div className="h-12 px-4 bg-[#18181B] border-t border-[#26262A] flex items-center justify-between text-xs text-[#8E8E93]">
             <div>
-              Showing {totalCount === 0 ? 0 : (currentPage - 1) * pageSize + 1} to{' '}
-              {Math.min(currentPage * pageSize, totalCount)} of {totalCount} companies
+              Showing {totalCount === 0 ? 0 : (effectivePage - 1) * pageSize + 1} to{' '}
+              {Math.min(effectivePage * pageSize, totalCount)} of {totalCount} companies
             </div>
 
             {totalPages > 1 && (
@@ -533,20 +534,20 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
                 <Button
                   size="sm"
                   variant="ghost"
-                  disabled={currentPage <= 1}
-                  onClick={() => updateParams({ page: String(currentPage - 1) })}
+                  disabled={effectivePage <= 1}
+                  onClick={() => updateParams({ page: String(effectivePage - 1) })}
                   className="h-7 px-2.5 text-xs text-[#8E8E93] hover:text-white"
                 >
                   Previous
                 </Button>
                 <span className="font-medium text-white px-1">
-                  {currentPage} of {totalPages}
+                  {effectivePage} of {totalPages}
                 </span>
                 <Button
                   size="sm"
                   variant="ghost"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => updateParams({ page: String(currentPage + 1) })}
+                  disabled={effectivePage >= totalPages}
+                  onClick={() => updateParams({ page: String(effectivePage + 1) })}
                   className="h-7 px-2.5 text-xs text-[#8E8E93] hover:text-white"
                 >
                   Next

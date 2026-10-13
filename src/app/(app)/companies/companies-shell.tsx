@@ -1,5 +1,4 @@
 import React, { Suspense } from 'react';
-import { getCurrentUser } from '@/lib/auth';
 import {
   getRankedIndustries,
   getStates,
@@ -15,10 +14,9 @@ interface CompaniesShellProps {
 }
 
 /**
- * Async server component — loads ONLY cached lookups + current user.
- * Does NOT await searchParams itself (it just passes the Promise down).
- * Renders the controls shell (toggles, search, filter pills, buttons) immediately,
- * then renders the keyed <Suspense> for the list rows as a child slot.
+ * Async server component — loads ONLY cached in-memory lookups (<5ms).
+ * Does NOT await getCurrentUser() or any network-touching resource.
+ * Renders the page title, the controls shell, and the keyed list Suspense immediately.
  *
  * The keyed boundary is formed here, using a fixed-order serialization of all
  * list-affecting params. The key MUST include every param that changes the list:
@@ -27,16 +25,15 @@ interface CompaniesShellProps {
  * Non-list params (e.g. ?new=1) are intentionally excluded.
  */
 export async function CompaniesShell({ searchParams }: CompaniesShellProps) {
-  const [user, rankedIndustries, cleanStates, cleanProfiles, customFieldDefinitions] =
+  const [rankedIndustries, cleanStates, cleanProfiles, customFieldDefinitions] =
     await Promise.all([
-      getCurrentUser(),
       getRankedIndustries(),
       getStates(),
       getProfiles(),
       getCustomFieldDefinitionsCached(),
     ]);
 
-  // Await params only to derive the Suspense key — the heavy data fetching
+  // Await params only to derive the Suspense key (in-memory, <0.5ms) — the heavy data fetching
   // happens inside <CompaniesListRows> which is inside the keyed boundary.
   const params = await searchParams;
 
@@ -67,17 +64,25 @@ export async function CompaniesShell({ searchParams }: CompaniesShellProps) {
     .join('&');
 
   return (
-    <CompaniesControls
-      rankedIndustries={rankedIndustries}
-      states={cleanStates}
-      profiles={cleanProfiles}
-      customFieldDefinitions={customFieldDefinitions}
-      currentUserId={user.id}
-      listSlot={
-        <Suspense key={listKey} fallback={<TableBodySkeleton />}>
-          <CompaniesListRows searchParams={searchParams} />
-        </Suspense>
-      }
-    />
+    <div className="flex flex-col gap-6">
+      {/* Page Header — returned immediately by the shell without network wait */}
+      <div className="flex flex-col gap-1 pb-4 border-b border-white/[0.08]">
+        <h1 className="text-2xl font-semibold text-white tracking-tight">Companies</h1>
+        <p className="text-xs text-[#8E8E93]">Lead pipeline and company directory</p>
+      </div>
+
+      {/* Controls shell (outside every keyed boundary) */}
+      <CompaniesControls
+        rankedIndustries={rankedIndustries}
+        states={cleanStates}
+        profiles={cleanProfiles}
+        customFieldDefinitions={customFieldDefinitions}
+        listSlot={
+          <Suspense key={listKey} fallback={<TableBodySkeleton />}>
+            <CompaniesListRows searchParams={searchParams} />
+          </Suspense>
+        }
+      />
+    </div>
   );
 }

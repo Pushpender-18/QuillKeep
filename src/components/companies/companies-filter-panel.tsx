@@ -1,12 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CustomFieldDefinition } from '@/lib/custom-fields';
-import { Search, X, Filter, ChevronDown, SlidersHorizontal, Settings2 } from 'lucide-react';
+import { Search, X, ChevronDown, SlidersHorizontal, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useCompaniesSelection } from '@/components/companies/companies-selection-context';
 
 export interface FilterOption {
   id: string;
@@ -31,18 +31,21 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
   customFieldDefinitions,
   onOpenManageCustomFields,
 }) => {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const {
+    optimisticParams,
+    latestOptimisticRef,
+    updateParams,
+  } = useCompaniesSelection();
 
   // Search input debounced state
-  const rawQ = searchParams.get('q') || '';
+  const rawQ = optimisticParams.q || '';
   const [searchValue, setSearchValue] = React.useState(rawQ);
+  const [prevRawQ, setPrevRawQ] = React.useState(rawQ);
 
-  // Sync internal search state when URL param changes externally
-  React.useEffect(() => {
+  if (rawQ !== prevRawQ) {
+    setPrevRawQ(rawQ);
     setSearchValue(rawQ);
-  }, [rawQ]);
+  }
 
   // Active pill popover states
   const [openPill, setOpenPill] = React.useState<string | null>(null);
@@ -52,47 +55,29 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
   const [industrySearch, setIndustrySearch] = React.useState('');
   const [profileSearch, setProfileSearch] = React.useState('');
 
-  const [isPending, startTransition] = React.useTransition();
-
-  // Helper to update search params
-  const updateParams = (newParams: Record<string, string | null>) => {
-    startTransition(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      Object.entries(newParams).forEach(([key, value]) => {
-        if (value === null || value === '') {
-          params.delete(key);
-        } else {
-          params.set(key, value);
-        }
-      });
-      params.set('page', '1'); // Reset to page 1 on filter change
-      router.push(`${pathname}?${params.toString()}`);
-    });
-  };
-
   // Debounced search handler (300 ms)
   React.useEffect(() => {
     const handler = setTimeout(() => {
-      const currentParam = searchParams.get('q') || '';
+      const currentParam = latestOptimisticRef.current.q || '';
       if (searchValue.trim().length >= 2) {
         if (searchValue.trim() !== currentParam) {
-          updateParams({ q: searchValue.trim() });
+          updateParams({ q: searchValue.trim(), page: '1' });
         }
       } else if (searchValue.trim().length === 0 && currentParam !== '') {
-        updateParams({ q: null });
+        updateParams({ q: null, page: '1' });
       }
     }, 300);
 
     return () => clearTimeout(handler);
-  }, [searchValue]);
+  }, [searchValue, updateParams, latestOptimisticRef]);
 
-  // Read URL filter states
-  const selectedStatuses = (searchParams.get('status') || '').split(',').filter(Boolean);
-  const selectedStates = (searchParams.get('state') || '').split(',').filter(Boolean);
-  const selectedIndustries = (searchParams.get('industry') || '').split(',').filter(Boolean);
-  const selectedAssigned = (searchParams.get('assigned') || '').split(',').filter(Boolean);
-  const selectedPriorities = (searchParams.get('priority') || '').split(',').filter(Boolean);
-  const locationParam = searchParams.get('location') || '';
+  // Read URL filter states from optimistic state (instant visual feedback)
+  const selectedStatuses = (optimisticParams.status || '').split(',').filter(Boolean);
+  const selectedStates = (optimisticParams.state || '').split(',').filter(Boolean);
+  const selectedIndustries = (optimisticParams.industry || '').split(',').filter(Boolean);
+  const selectedAssigned = (optimisticParams.assigned || '').split(',').filter(Boolean);
+  const selectedPriorities = (optimisticParams.priority || '').split(',').filter(Boolean);
+  const locationParam = optimisticParams.location || '';
 
   // Extract active custom field parameters from URL (params prefixed with cf_)
   const activeCustomFieldFilters: {
@@ -106,14 +91,14 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
     .filter((d) => d.isActive)
     .forEach((def) => {
       if (def.fieldType === 'text') {
-        const v = searchParams.get(`cf_text_${def.id}`);
+        const v = optimisticParams[`cf_text_${def.id}`];
         if (v) activeCustomFieldFilters.push({ fieldId: def.id, def, type: 'text', val: v });
       } else if (def.fieldType === 'dropdown') {
-        const v = searchParams.get(`cf_drop_${def.id}`);
+        const v = optimisticParams[`cf_drop_${def.id}`];
         if (v) activeCustomFieldFilters.push({ fieldId: def.id, def, type: 'dropdown', val: v });
       } else if (def.fieldType === 'number') {
-        const min = searchParams.get(`cf_num_min_${def.id}`);
-        const max = searchParams.get(`cf_num_max_${def.id}`);
+        const min = optimisticParams[`cf_num_min_${def.id}`];
+        const max = optimisticParams[`cf_num_max_${def.id}`];
         if (min || max) {
           activeCustomFieldFilters.push({
             fieldId: def.id,
@@ -123,8 +108,8 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
           });
         }
       } else if (def.fieldType === 'date') {
-        const from = searchParams.get(`cf_date_from_${def.id}`);
-        const to = searchParams.get(`cf_date_to_${def.id}`);
+        const from = optimisticParams[`cf_date_from_${def.id}`];
+        const to = optimisticParams[`cf_date_to_${def.id}`];
         if (from || to) {
           activeCustomFieldFilters.push({
             fieldId: def.id,
@@ -147,33 +132,37 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
     activeCustomFieldFilters.length;
 
   const handleToggleMultiSelect = (paramKey: string, currentValues: string[], id: string) => {
+    // Always compute next selection from freshest optimistic state
+    const currentStr = latestOptimisticRef.current[paramKey] || '';
+    const currentList = currentStr ? currentStr.split(',').filter(Boolean) : currentValues;
     let next: string[];
-    if (currentValues.includes(id)) {
-      next = currentValues.filter((v) => v !== id);
+    if (currentList.includes(id)) {
+      next = currentList.filter((v) => v !== id);
     } else {
-      next = [...currentValues, id];
+      next = [...currentList, id];
     }
-    updateParams({ [paramKey]: next.length > 0 ? next.join(',') : null });
+    updateParams({ [paramKey]: next.length > 0 ? next.join(',') : null, page: '1' });
   };
 
   const handleClearAllFilters = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('status');
-    params.delete('state');
-    params.delete('industry');
-    params.delete('assigned');
-    params.delete('priority');
-    params.delete('location');
+    const updates: Record<string, string | null> = {
+      status: null,
+      state: null,
+      industry: null,
+      assigned: null,
+      priority: null,
+      location: null,
+      page: '1',
+    };
 
     // Delete custom field params
-    Array.from(params.keys()).forEach((key) => {
+    Object.keys(latestOptimisticRef.current).forEach((key) => {
       if (key.startsWith('cf_')) {
-        params.delete(key);
+        updates[key] = null;
       }
     });
 
-    params.set('page', '1');
-    router.push(`${pathname}?${params.toString()}`);
+    updateParams(updates);
   };
 
   // Close popover when clicking outside
@@ -535,7 +524,7 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     const target = e.target as HTMLInputElement;
-                    updateParams({ location: target.value.trim() || null });
+                    updateParams({ location: target.value.trim() || null, page: '1' });
                     setOpenPill(null);
                   }
                 }}
@@ -547,7 +536,7 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    updateParams({ location: null });
+                    updateParams({ location: null, page: '1' });
                     setOpenPill(null);
                   }}
                 >
@@ -609,7 +598,7 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
                       <CustomFieldFilterItem
                         key={field.id}
                         field={field}
-                        searchParams={searchParams}
+                        optimisticParams={optimisticParams}
                         updateParams={updateParams}
                       />
                     ))}
@@ -722,7 +711,10 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
           {locationParam && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#0A84FF]/15 text-[#0A84FF] text-xs font-medium border border-[#0A84FF]/30">
               <span>Location: {locationParam}</span>
-              <button onClick={() => updateParams({ location: null })} className="hover:text-white">
+              <button
+                onClick={() => updateParams({ location: null, page: '1' })}
+                className="hover:text-white"
+              >
                 <X className="w-3 h-3" />
               </button>
             </span>
@@ -743,6 +735,7 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
                     [`cf_num_max_${cf.fieldId}`]: null,
                     [`cf_date_from_${cf.fieldId}`]: null,
                     [`cf_date_to_${cf.fieldId}`]: null,
+                    page: '1',
                   });
                 }}
                 className="hover:text-white"
@@ -760,11 +753,14 @@ export const CompaniesFilterPanel: React.FC<CompaniesFilterPanelProps> = ({
 // Component for rendering custom field filter controls inside custom fields popover
 const CustomFieldFilterItem: React.FC<{
   field: CustomFieldDefinition;
-  searchParams: ReturnType<typeof useSearchParams>;
-  updateParams: (newParams: Record<string, string | null>) => void;
-}> = ({ field, searchParams, updateParams }) => {
+  optimisticParams: Record<string, string>;
+  updateParams: (
+    newParams: Record<string, string | null>,
+    options?: { replace?: boolean }
+  ) => void;
+}> = ({ field, optimisticParams, updateParams }) => {
   if (field.fieldType === 'text') {
-    const textVal = searchParams.get(`cf_text_${field.id}`) || '';
+    const textVal = optimisticParams[`cf_text_${field.id}`] || '';
     return (
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-white">{field.name}</label>
@@ -774,7 +770,7 @@ const CustomFieldFilterItem: React.FC<{
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               const val = (e.target as HTMLInputElement).value.trim();
-              updateParams({ [`cf_text_${field.id}`]: val || null });
+              updateParams({ [`cf_text_${field.id}`]: val || null, page: '1' });
             }
           }}
           className="h-7 text-xs bg-[#2C2C2E]"
@@ -784,7 +780,7 @@ const CustomFieldFilterItem: React.FC<{
   }
 
   if (field.fieldType === 'dropdown') {
-    const selected = (searchParams.get(`cf_drop_${field.id}`) || '').split(',').filter(Boolean);
+    const selected = (optimisticParams[`cf_drop_${field.id}`] || '').split(',').filter(Boolean);
     const options = field.options || [];
     return (
       <div className="flex flex-col gap-1">
@@ -806,6 +802,7 @@ const CustomFieldFilterItem: React.FC<{
                       : [...selected, opt];
                     updateParams({
                       [`cf_drop_${field.id}`]: next.length > 0 ? next.join(',') : null,
+                      page: '1',
                     });
                   }}
                   className="rounded border-white/[0.2] bg-[#2C2C2E] text-[#0A84FF] focus:ring-0"
@@ -820,8 +817,8 @@ const CustomFieldFilterItem: React.FC<{
   }
 
   if (field.fieldType === 'number') {
-    const minVal = searchParams.get(`cf_num_min_${field.id}`) || '';
-    const maxVal = searchParams.get(`cf_num_max_${field.id}`) || '';
+    const minVal = optimisticParams[`cf_num_min_${field.id}`] || '';
+    const maxVal = optimisticParams[`cf_num_max_${field.id}`] || '';
     return (
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-white">{field.name} (Range)</label>
@@ -833,7 +830,7 @@ const CustomFieldFilterItem: React.FC<{
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const val = (e.target as HTMLInputElement).value.trim();
-                updateParams({ [`cf_num_min_${field.id}`]: val || null });
+                updateParams({ [`cf_num_min_${field.id}`]: val || null, page: '1' });
               }
             }}
             className="h-7 text-xs bg-[#2C2C2E]"
@@ -845,7 +842,7 @@ const CustomFieldFilterItem: React.FC<{
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 const val = (e.target as HTMLInputElement).value.trim();
-                updateParams({ [`cf_num_max_${field.id}`]: val || null });
+                updateParams({ [`cf_num_max_${field.id}`]: val || null, page: '1' });
               }
             }}
             className="h-7 text-xs bg-[#2C2C2E]"
@@ -856,8 +853,8 @@ const CustomFieldFilterItem: React.FC<{
   }
 
   if (field.fieldType === 'date') {
-    const fromVal = searchParams.get(`cf_date_from_${field.id}`) || '';
-    const toVal = searchParams.get(`cf_date_to_${field.id}`) || '';
+    const fromVal = optimisticParams[`cf_date_from_${field.id}`] || '';
+    const toVal = optimisticParams[`cf_date_to_${field.id}`] || '';
     return (
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-white">{field.name} (Date Range)</label>
@@ -865,13 +862,17 @@ const CustomFieldFilterItem: React.FC<{
           <Input
             type="date"
             defaultValue={fromVal}
-            onChange={(e) => updateParams({ [`cf_date_from_${field.id}`]: e.target.value || null })}
+            onChange={(e) =>
+              updateParams({ [`cf_date_from_${field.id}`]: e.target.value || null, page: '1' })
+            }
             className="h-7 text-xs bg-[#2C2C2E] text-white"
           />
           <Input
             type="date"
             defaultValue={toVal}
-            onChange={(e) => updateParams({ [`cf_date_to_${field.id}`]: e.target.value || null })}
+            onChange={(e) =>
+              updateParams({ [`cf_date_to_${field.id}`]: e.target.value || null, page: '1' })
+            }
             className="h-7 text-xs bg-[#2C2C2E] text-white"
           />
         </div>
