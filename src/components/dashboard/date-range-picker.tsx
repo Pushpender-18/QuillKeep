@@ -131,10 +131,10 @@ export function DateRangePicker({
 
     return (
       <div className="flex flex-col gap-2">
-        <div className="text-sm font-medium text-white text-center py-1">
+        <div className="text-sm font-medium text-slate-900 dark:text-white text-center py-1">
           {monthName}
         </div>
-        <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-[#8E8E93] mb-1">
+        <div className="grid grid-cols-7 text-center text-[11px] font-semibold text-slate-400 dark:text-[#8E8E93] mb-1">
           <span>Su</span>
           <span>Mo</span>
           <span>Tu</span>
@@ -182,10 +182,10 @@ export function DateRangePicker({
                 }}
                 className={cn(
                   'h-7 w-7 rounded-lg flex items-center justify-center font-medium transition-colors text-xs',
-                  isFuture && 'text-white/20 cursor-not-allowed',
-                  !isFuture && !isInRange && 'text-white/80 hover:bg-white/10',
-                  isInRange && 'bg-[#0A84FF]/20 text-[#0A84FF]',
-                  (isFrom || isTo) && 'bg-[#0A84FF] text-white font-bold shadow-sm'
+                  isFuture && 'text-slate-300 dark:text-white/20 cursor-not-allowed',
+                  !isFuture && !isInRange && 'text-slate-700 dark:text-white/80 hover:bg-slate-100 dark:hover:bg-white/10',
+                  isInRange && 'bg-[#0A84FF]/15 text-[#0A84FF] font-medium',
+                  (isFrom || isTo) && 'bg-[#0A84FF] text-white font-bold shadow-xs'
                 )}
               >
                 {day}
@@ -230,22 +230,22 @@ export function DateRangePicker({
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-[#161618] border border-white/10 hover:border-white/20 px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs sm:text-sm text-white shadow-sm transition-all"
+        className="bg-white dark:bg-[#161618] border border-slate-300 dark:border-white/10 hover:border-slate-400 dark:hover:border-white/20 px-3.5 py-1.5 rounded-xl flex items-center gap-2 text-xs sm:text-sm text-slate-800 dark:text-white shadow-xs dark:shadow-sm transition-all cursor-pointer"
       >
         <span className="font-medium">{currentLabel}</span>
-        <CalendarIcon className="w-4 h-4 text-[#8E8E93]" />
+        <CalendarIcon className="w-4 h-4 text-slate-500 dark:text-[#8E8E93]" />
       </button>
 
       {/* Popover / Modal Overlay */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 z-50 bg-[#161618] border border-white/10 rounded-2xl shadow-2xl p-4 w-[340px] sm:w-[680px] flex flex-col gap-4 backdrop-blur-md">
+        <div className="absolute right-0 top-full mt-2 z-50 bg-white dark:bg-[#161618] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl p-4 w-[340px] sm:w-[680px] flex flex-col gap-4 backdrop-blur-md">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <span className="text-sm font-semibold text-white">Select Date Range</span>
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/10 pb-3">
+            <span className="text-sm font-semibold text-slate-900 dark:text-white">Select Date Range</span>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="text-[#8E8E93] hover:text-white p-1 rounded-lg transition-colors"
+              className="text-slate-400 hover:text-slate-700 dark:text-[#8E8E93] dark:hover:text-white p-1 rounded-lg transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -253,7 +253,7 @@ export function DateRangePicker({
 
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Presets Column */}
-            <div className="flex flex-col gap-1 sm:w-44 shrink-0 border-b sm:border-b-0 sm:border-r border-white/10 pb-3 sm:pb-0 sm:pr-3">
+            <div className="flex flex-col gap-1 sm:w-44 shrink-0 border-b sm:border-b-0 sm:border-r border-slate-200 dark:border-white/10 pb-3 sm:pb-0 sm:pr-3">
               {presetList.map((p) => {
                 const isActive = selectedPreset === p.id;
                 return (
@@ -262,10 +262,10 @@ export function DateRangePicker({
                     type="button"
                     onClick={() => handleSelectPreset(p.id)}
                     className={cn(
-                      'px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium transition-colors',
+                      'px-3 py-2 rounded-lg text-left text-xs sm:text-sm font-medium transition-colors cursor-pointer',
                       isActive
-                        ? 'bg-[#0A84FF] text-white'
-                        : 'text-[#8E8E93] hover:bg-white/5 hover:text-white'
+                        ? 'bg-[#0A84FF] text-white font-semibold shadow-xs'
+                        : 'text-slate-600 dark:text-[#8E8E93] hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
                     )}
                   >
                     {p.label}
@@ -281,17 +281,17 @@ export function DateRangePicker({
                 <button
                   type="button"
                   onClick={prevMonthNav}
-                  className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-white"
+                  className="p-1 rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-white cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
-                <span className="text-xs text-[#8E8E93]">
+                <span className="text-xs text-slate-500 dark:text-[#8E8E93]">
                   Highlight range or enter dates below
                 </span>
                 <button
                   type="button"
                   onClick={nextMonthNav}
-                  className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-white"
+                  className="p-1 rounded-lg bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-white cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -306,9 +306,9 @@ export function DateRangePicker({
               </div>
 
               {/* Start & End Date Text Inputs */}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/10">
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-white/10">
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-[#8E8E93] uppercase">
+                  <label className="text-[11px] font-semibold text-slate-500 dark:text-[#8E8E93] uppercase">
                     Start Date
                   </label>
                   <input
@@ -319,11 +319,11 @@ export function DateRangePicker({
                       setSelectedPreset('custom');
                       setCustomFromStr(e.target.value);
                     }}
-                    className="bg-[#201F20] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#0A84FF]"
+                    className="bg-slate-50 dark:bg-[#201F20] border border-slate-300 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#0A84FF]"
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-[11px] font-semibold text-[#8E8E93] uppercase">
+                  <label className="text-[11px] font-semibold text-slate-500 dark:text-[#8E8E93] uppercase">
                     End Date
                   </label>
                   <input
@@ -334,7 +334,7 @@ export function DateRangePicker({
                       setSelectedPreset('custom');
                       setCustomToStr(e.target.value);
                     }}
-                    className="bg-[#201F20] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#0A84FF]"
+                    className="bg-slate-50 dark:bg-[#201F20] border border-slate-300 dark:border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-[#0A84FF]"
                   />
                 </div>
               </div>
@@ -342,13 +342,13 @@ export function DateRangePicker({
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-3">
+          <div className="flex items-center justify-end gap-2 border-t border-slate-200 dark:border-white/10 pt-3">
             <Button
               type="button"
               variant="ghost"
               size="sm"
               onClick={() => setIsOpen(false)}
-              className="text-xs text-[#8E8E93] hover:text-white"
+              className="text-xs text-slate-600 hover:text-slate-900 dark:text-[#8E8E93] dark:hover:text-white"
             >
               Cancel
             </Button>

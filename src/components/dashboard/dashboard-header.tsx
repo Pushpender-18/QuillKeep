@@ -45,15 +45,15 @@ export function DashboardHeader({
   };
 
   return (
-    <div className={`flex flex-col gap-3 pb-6 border-b border-white/[0.08] transition-opacity duration-200 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
+    <div className={`flex flex-col gap-3 pb-6 border-b border-slate-200 dark:border-white/[0.08] transition-opacity duration-200 ${isPending ? 'opacity-70' : 'opacity-100'}`}>
       {/* Top row: Title + Right Controls */}
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-light text-white tracking-tight">Dashboard</h1>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#161618] border border-white/10 text-xs text-white">
-              <span className="w-2 h-2 rounded-full bg-[#30D158] animate-pulse" />
-              <span className="text-white/90 font-medium">Live Sync</span>
+            <h1 className="text-3xl font-light text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white dark:bg-[#161618] border border-slate-300 dark:border-white/10 text-xs text-slate-800 dark:text-white shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-[#30D158] animate-pulse" />
+              <span className="font-semibold text-slate-800 dark:text-white/90">Live Sync</span>
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export function DashboardHeader({
             onChange={handleScopeChange}
           />
 
-          <div className="h-6 w-px bg-white/10 hidden sm:block" />
+          <div className="h-6 w-px bg-slate-200 dark:bg-white/10 hidden sm:block" />
 
           {/* Dynamic Date Range Control */}
           <DateRangePickerDynamic
@@ -84,7 +84,7 @@ export function DashboardHeader({
       </div>
 
       {/* Caption text */}
-      <p className="text-xs sm:text-sm text-[#8E8E93]">
+      <p className="text-xs sm:text-sm text-slate-500 dark:text-[#8E8E93]">
         Activity is for the selected range. Overdue and upcoming reminders always show right now.
       </p>
 

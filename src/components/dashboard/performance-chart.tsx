@@ -66,26 +66,26 @@ export function PerformanceChart({ points, days }: PerformanceChartProps) {
   }, [chartData]);
 
   return (
-    <div className="bg-[#161618] border border-white/[0.08] p-6 rounded-2xl flex flex-col justify-between h-full shadow-sm">
+    <div className="bg-white dark:bg-[#161618] border border-slate-200/90 dark:border-white/[0.08] p-6 rounded-2xl flex flex-col justify-between h-full shadow-xs dark:shadow-sm">
       {/* Card Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <div>
           <div className="flex items-center gap-1.5">
-            <h2 className="text-base font-medium text-white">Outreaches over time</h2>
+            <h2 className="text-base font-medium text-slate-900 dark:text-white">Outreaches over time</h2>
             <div
               className="relative group cursor-help"
               title="The chart counts daily outreach events, so its total can differ slightly from the Contacted card if a company was moved to Contacted on several days."
             >
-              <Info className="w-3.5 h-3.5 text-[#8E8E93] hover:text-white transition-colors" />
+              <Info className="w-3.5 h-3.5 text-slate-400 hover:text-slate-700 dark:text-[#8E8E93] dark:hover:text-white transition-colors" />
             </div>
           </div>
-          <p className="text-xs text-[#8E8E93] mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-[#8E8E93] mt-0.5">
             {days > 90 ? 'Weekly aggregated outreach volume' : 'Daily outreach activity volume'}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-xs text-[#8E8E93]">
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-[#8E8E93]">
             <span className="w-2.5 h-2.5 rounded-full bg-[#0A84FF]" />
             <span>Outreaches</span>
           </div>
@@ -95,9 +95,9 @@ export function PerformanceChart({ points, days }: PerformanceChartProps) {
       {/* Chart Area */}
       <div className="relative w-full h-64 mt-2">
         {isAllZero ? (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#201F20]/40 rounded-xl border border-white/5 z-10 text-center p-4">
-            <p className="text-sm font-medium text-white">No outreach in this period</p>
-            <p className="text-xs text-[#8E8E93] mt-1 max-w-xs">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/40 dark:bg-[#161618]/50 backdrop-blur-[0.5px] rounded-xl border border-slate-200/70 dark:border-white/5 z-10 text-center p-4 pointer-events-none">
+            <p className="text-sm font-semibold text-slate-800 dark:text-white">No outreach in this period</p>
+            <p className="text-xs text-slate-500 dark:text-[#8E8E93] mt-1 max-w-xs">
               No status changes to Contacted occurred within the selected date range.
             </p>
           </div>

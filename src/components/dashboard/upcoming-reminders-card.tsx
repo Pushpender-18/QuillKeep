@@ -66,13 +66,13 @@ export function UpcomingRemindersCard({
   const overdueCount = reminders.filter((r) => r.isOverdue).length;
 
   return (
-    <div className="bg-[#161618] border border-white/[0.08] p-6 rounded-2xl flex flex-col gap-4 shadow-sm">
+    <div className="bg-white dark:bg-[#161618] border border-slate-200/90 dark:border-white/[0.08] p-6 rounded-2xl flex flex-col gap-4 shadow-xs dark:shadow-sm">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 dark:border-white/[0.08] pb-4">
         <div className="flex items-center gap-3">
-          <h2 className="text-base font-medium text-white">Upcoming Reminders</h2>
+          <h2 className="text-base font-medium text-slate-900 dark:text-white">Upcoming Reminders</h2>
           {overdueCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-[#FF453A]/20 text-[#FF453A] text-xs font-semibold">
+            <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 dark:bg-[#FF453A]/20 dark:text-[#FF453A] text-xs font-semibold">
               {overdueCount} Overdue
             </span>
           )}
@@ -88,22 +88,22 @@ export function UpcomingRemindersCard({
 
       {/* Reminders List or Empty State */}
       {reminders.length === 0 ? (
-        <div className="py-12 flex flex-col items-center justify-center text-center text-[#8E8E93]">
-          <Clock className="w-8 h-8 text-[#8E8E93]/60 mb-2" />
-          <p className="text-sm font-medium text-white">Nothing coming up</p>
-          <p className="text-xs text-[#8E8E93] mt-0.5">
+        <div className="py-12 flex flex-col items-center justify-center text-center text-slate-500 dark:text-[#8E8E93]">
+          <Clock className="w-8 h-8 text-slate-400 dark:text-[#8E8E93]/60 mb-2" />
+          <p className="text-sm font-medium text-slate-800 dark:text-white">Nothing coming up</p>
+          <p className="text-xs text-slate-500 dark:text-[#8E8E93] mt-0.5">
             No pending reminders assigned for this scope right now.
           </p>
         </div>
       ) : (
-        <div className="flex flex-col divide-y divide-white/[0.08]">
+        <div className="flex flex-col divide-y divide-slate-200 dark:divide-white/[0.08]">
           {reminders.map((r) => {
             const formattedTime = formatAuditDateTime(r.dueAt);
 
             return (
               <div
                 key={r.id}
-                className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-white/[0.02] px-2 rounded-xl transition-colors"
+                className="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-white/[0.02] px-2 rounded-xl transition-colors"
               >
                 {/* Left side: Priority dot, company name, type, due time */}
                 <div className="flex items-start sm:items-center gap-3 min-w-0">
@@ -113,7 +113,7 @@ export function UpcomingRemindersCard({
                       'w-2.5 h-2.5 rounded-full shrink-0 mt-1 sm:mt-0',
                       r.priority === 'high' && 'bg-[#FF453A] ring-4 ring-[#FF453A]/20',
                       r.priority === 'medium' && 'bg-[#FF9F0A]',
-                      r.priority === 'low' && 'bg-[#8E8E93]'
+                      r.priority === 'low' && 'bg-slate-400 dark:bg-[#8E8E93]'
                     )}
                     title={`Priority: ${r.priority}`}
                   />
@@ -122,32 +122,32 @@ export function UpcomingRemindersCard({
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link
                         href={`/companies/${r.companyId}`}
-                        className="text-sm font-medium text-white hover:text-[#0A84FF] transition-colors truncate"
+                        className="text-sm font-medium text-slate-900 dark:text-white hover:text-[#0A84FF] transition-colors truncate"
                       >
                         {r.companyName}
                       </Link>
 
                       {/* Reminder Type Badge */}
-                      <span className="inline-flex items-center gap-1 text-xs text-[#8E8E93] bg-white/5 px-2 py-0.5 rounded-md">
+                      <span className="inline-flex items-center gap-1 text-xs text-slate-600 dark:text-[#8E8E93] bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-md">
                         {getTypeIcon(r.type)}
                         <span>{getTypeLabel(r.type)}</span>
                       </span>
 
                       {/* Due Time badge */}
                       {r.isOverdue ? (
-                        <span className="px-2 py-0.5 rounded-md bg-[#FF453A]/20 text-[#FF453A] text-xs font-medium flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#FF453A] animate-pulse" />
+                        <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 dark:bg-[#FF453A]/20 dark:text-[#FF453A] text-xs font-medium flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-600 dark:bg-[#FF453A] animate-pulse" />
                           <span>Overdue ({formattedTime})</span>
                         </span>
                       ) : (
-                        <span className="text-xs text-[#8E8E93]">
+                        <span className="text-xs text-slate-500 dark:text-[#8E8E93]">
                           {formattedTime}
                         </span>
                       )}
                     </div>
 
                     {r.note && (
-                      <p className="text-xs text-[#8E8E93] mt-1 line-clamp-1">
+                      <p className="text-xs text-slate-500 dark:text-[#8E8E93] mt-1 line-clamp-1">
                         {r.note}
                       </p>
                     )}
@@ -162,7 +162,7 @@ export function UpcomingRemindersCard({
                       email={r.assigneeEmail}
                       size="sm"
                     />
-                    <span className="text-xs text-[#8E8E93] hidden md:inline truncate max-w-[100px]">
+                    <span className="text-xs text-slate-600 dark:text-[#8E8E93] hidden md:inline truncate max-w-[100px]">
                       {r.assigneeName}
                     </span>
                   </div>

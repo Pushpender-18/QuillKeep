@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 function LoginFormContent() {
   const [state, formAction, isPending] = useActionState(loginAction, null);
@@ -107,12 +108,17 @@ function LoginFormContent() {
   );
 }
 
+
 export default function LoginPage() {
   return (
-    <div className="min-h-screen w-full bg-[#0A0A0B] flex items-center justify-center p-4 selection:bg-[#0A84FF]/30 selection:text-white">
+    <div className="relative min-h-screen w-full bg-[#0A0A0B] flex items-center justify-center p-4 selection:bg-[#0A84FF]/30 selection:text-white transition-colors duration-150">
+      <div className="absolute top-5 right-5 z-20">
+        <ThemeToggle />
+      </div>
       <React.Suspense fallback={<div className="text-sm text-[#8E8E93]">Loading login form...</div>}>
         <LoginFormContent />
       </React.Suspense>
     </div>
   );
 }
+

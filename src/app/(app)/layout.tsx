@@ -30,7 +30,7 @@ export default async function AppLayout({
   return (
     <LayoutHotkeysProvider>
       <NextTopLoader color="#0A84FF" showSpinner={false} height={2} />
-      <div className="min-h-screen bg-[#0A0A0B] flex text-white">
+      <div className="min-h-screen bg-app flex text-app transition-colors duration-150">
         <Sidebar
           taskBadge={
             <Suspense fallback={null}>

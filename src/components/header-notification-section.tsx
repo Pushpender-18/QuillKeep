@@ -19,7 +19,7 @@ export async function HeaderNotificationSection() {
 
 export function HeaderNotificationFallback() {
   return (
-    <div className="relative p-2.5 rounded-xl bg-[#201F20]/60 border border-white/[0.08] text-[#8E8E93]">
+    <div className="relative p-2.5 rounded-xl bg-white dark:bg-[#201F20]/60 border border-slate-200 dark:border-white/[0.08] text-slate-400 dark:text-[#8E8E93]">
       <Bell className="w-4 h-4" />
     </div>
   );

@@ -111,7 +111,7 @@ export function TableSkeleton({ rowCount = 10 }: { rowCount?: number }) {
  */
 export function TableBodySkeleton({ rowCount = 10 }: { rowCount?: number }) {
   return (
-    <div className="w-full bg-[#141417] border border-[#242428] rounded-xl overflow-hidden shadow-xl">
+    <div className="w-full bg-white dark:bg-[#161618] border border-slate-200/70 dark:border-white/[0.08] rounded-2xl overflow-hidden shadow-sm dark:shadow-2xl">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
           {/* Invisible thead to preserve column widths — matches real table exactly */}
@@ -126,7 +126,7 @@ export function TableBodySkeleton({ rowCount = 10 }: { rowCount?: number }) {
             <col style={{ width: '11%' }} />
             <col className="w-24" />
           </colgroup>
-          <tbody className="divide-y divide-[#242428]">
+          <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04]">
             {Array.from({ length: rowCount }).map((_, i) => (
               <tr key={i} className="h-14">
                 {/* Checkbox */}
@@ -174,7 +174,7 @@ export function TableBodySkeleton({ rowCount = 10 }: { rowCount?: number }) {
         </table>
       </div>
       {/* Pagination footer skeleton */}
-      <div className="h-12 px-4 bg-[#18181B] border-t border-[#26262A] flex items-center justify-between">
+      <div className="h-12 px-4 bg-slate-50/50 dark:bg-[#18181B] border-t border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between">
         <Skeleton className="h-3 w-48" />
         <div className="flex items-center gap-2">
           <Skeleton className="h-7 w-16 rounded" />

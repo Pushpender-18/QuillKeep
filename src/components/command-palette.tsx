@@ -3,10 +3,11 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { globalSearchAction, GlobalSearchResultItem } from '@/app/actions/search';
-import { Search, X, Building2, User, MessageSquare, PlusCircle, CalendarPlus, LayoutDashboard, CheckSquare, ArrowRight, CornerDownLeft } from 'lucide-react';
+import { Search, X, Building2, User, MessageSquare, PlusCircle, CalendarPlus, LayoutDashboard, CheckSquare, ArrowRight, CornerDownLeft, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatusPill } from '@/components/ui/status-pill';
 import { Avatar } from '@/components/ui/avatar';
+import { useTheme } from '@/components/theme-provider';
 
 interface QuickActionItem {
   id: string;
@@ -14,7 +15,8 @@ interface QuickActionItem {
   title: string;
   icon: React.ElementType;
   shortcut?: string;
-  href: string;
+  href?: string;
+  onSelect?: () => void;
 }
 
 export interface CommandPaletteRef {
@@ -24,6 +26,7 @@ export interface CommandPaletteRef {
 
 export const CommandPalette: React.FC = () => {
   const router = useRouter();
+  const { resolvedTheme, toggleTheme, setTheme } = useTheme();
   const [isOpen, setIsOpen] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -134,6 +137,27 @@ export const CommandPalette: React.FC = () => {
       icon: CheckSquare,
       href: '/tasks',
     },
+    {
+      id: 'qa-toggle-theme',
+      type: 'action',
+      title: `Toggle Theme (Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode)`,
+      icon: resolvedTheme === 'dark' ? Sun : Moon,
+      onSelect: () => toggleTheme(),
+    },
+    {
+      id: 'qa-light-theme',
+      type: 'action',
+      title: 'Switch to Light Theme',
+      icon: Sun,
+      onSelect: () => setTheme('light'),
+    },
+    {
+      id: 'qa-dark-theme',
+      type: 'action',
+      title: 'Switch to Dark Theme',
+      icon: Moon,
+      onSelect: () => setTheme('dark'),
+    },
   ];
 
   // Filter quick actions if query is typed
@@ -151,9 +175,11 @@ export const CommandPalette: React.FC = () => {
 
   const handleSelect = (item: GlobalSearchResultItem | QuickActionItem) => {
     setIsOpen(false);
-    if ('href' in item) {
+    if ('onSelect' in item && typeof item.onSelect === 'function') {
+      item.onSelect();
+    } else if ('href' in item && item.href) {
       router.push(item.href);
-    } else {
+    } else if ('companyId' in item) {
       router.push(`/companies/${item.companyId}`);
     }
   };

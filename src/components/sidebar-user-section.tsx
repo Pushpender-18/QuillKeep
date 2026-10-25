@@ -14,15 +14,15 @@ export async function SidebarUserProfile() {
       <div className="flex items-center gap-3 min-w-0">
         <Avatar name={user.fullName} email={user.email} size="md" />
         <div className="flex flex-col min-w-0">
-          <span className="text-xs font-semibold text-white truncate">{user.fullName || 'User'}</span>
-          <span className="text-[11px] text-[#8E8E93] truncate">{user.email}</span>
+          <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">{user.fullName || 'User'}</span>
+          <span className="text-[11px] text-slate-500 dark:text-[#8E8E93] truncate">{user.email}</span>
         </div>
       </div>
       <form action={signOutAction}>
         <button
           type="submit"
           title="Sign out"
-          className="p-1.5 rounded-lg text-[#8E8E93] hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer"
+          className="p-1.5 rounded-lg text-slate-500 dark:text-[#8E8E93] hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
         </button>

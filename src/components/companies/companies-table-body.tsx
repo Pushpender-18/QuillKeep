@@ -343,11 +343,11 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
           />
         )
       ) : (
-        <div className="w-full bg-[#141417] border border-[#242428] rounded-xl overflow-hidden shadow-xl">
+        <div className="w-full bg-white dark:bg-[#161618] border border-slate-200/70 dark:border-white/[0.08] rounded-2xl overflow-hidden shadow-sm dark:shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse table-fixed min-w-[950px]">
               <thead>
-                <tr className="h-11 bg-[#1A1A1E] border-b border-[#26262A] text-[#A1A1AA] text-[11px] font-semibold uppercase tracking-wider select-none">
+                <tr className="h-11 bg-slate-50/75 dark:bg-[#1A1A1E]/80 border-b border-slate-200/60 dark:border-white/[0.06] text-slate-500 dark:text-[#A1A1AA] text-[11px] font-semibold uppercase tracking-wider select-none">
                   {/* Header Checkbox */}
                   <th className="w-12 px-3 text-center">
                     <input
@@ -357,7 +357,7 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
                         if (input) input.indeterminate = isPartialPageSelected;
                       }}
                       onChange={handleHeaderCheckboxChange}
-                      className="w-4 h-4 rounded border-white/20 bg-[#1F1F23] accent-[#0A84FF] cursor-pointer"
+                      className="w-4 h-4 rounded border-slate-300 dark:border-white/20 bg-white dark:bg-[#1F1F23] accent-[#0A84FF] cursor-pointer"
                     />
                   </th>
 
@@ -417,15 +417,15 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-[#242428] text-xs font-normal text-[#E4E4E7]">
+              <tbody className="divide-y divide-slate-100 dark:divide-white/[0.04] text-xs font-normal text-slate-800 dark:text-[#E4E4E7]">
                 {companies.map((c, index) => {
                   const isSelected = selectedIds.includes(c.id);
                   return (
                     <tr
                       key={c.id}
                       onClick={() => router.push(`/companies/${c.id}`)}
-                      className={`h-14 hover:bg-white/[0.04] transition-colors cursor-pointer group ${
-                        isSelected ? 'bg-[#0A84FF]/10' : ''
+                      className={`h-14 hover:bg-slate-50/80 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group ${
+                        isSelected ? 'bg-blue-50/70 dark:bg-[#0A84FF]/10' : ''
                       }`}
                     >
                       {/* Checkbox */}
@@ -434,7 +434,7 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {}}
-                          className="w-4 h-4 rounded border-white/20 bg-[#1F1F23] accent-[#0A84FF] cursor-pointer"
+                          className="w-4 h-4 rounded border-slate-300 dark:border-white/20 bg-white dark:bg-[#1F1F23] accent-[#0A84FF] cursor-pointer"
                         />
                       </td>
 
@@ -523,7 +523,7 @@ export const CompaniesTableBody: React.FC<CompaniesTableBodyProps> = ({
           </div>
 
           {/* Table Footer: Server-Side Pagination */}
-          <div className="h-12 px-4 bg-[#18181B] border-t border-[#26262A] flex items-center justify-between text-xs text-[#8E8E93]">
+          <div className="h-12 px-4 bg-slate-50/50 dark:bg-[#18181B] border-t border-slate-200/60 dark:border-white/[0.06] flex items-center justify-between text-xs text-slate-500 dark:text-[#8E8E93]">
             <div>
               Showing {totalCount === 0 ? 0 : (effectivePage - 1) * pageSize + 1} to{' '}
               {Math.min(effectivePage * pageSize, totalCount)} of {totalCount} companies

@@ -177,11 +177,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
         type="button"
         onClick={handleToggle}
         title="Notifications"
-        className="relative p-2 rounded-xl bg-[#161618] border border-white/[0.08] text-[#8E8E93] hover:text-white hover:border-white/20 transition-all shadow-sm cursor-pointer"
+        className="relative p-2 rounded-xl bg-white dark:bg-[#161618] border border-slate-300 dark:border-white/[0.08] text-slate-600 dark:text-[#8E8E93] hover:text-slate-900 dark:hover:text-white hover:border-slate-400 dark:hover:border-white/20 transition-all shadow-xs dark:shadow-sm cursor-pointer"
       >
         <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0A84FF] text-white ring-2 ring-[#0A0A0B] min-w-4 text-center leading-none">
+          <span className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#0A84FF] text-white ring-2 ring-white dark:ring-[#0A0A0B] min-w-4 text-center leading-none">
             {badgeText}
           </span>
         )}
@@ -189,11 +189,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
 
       {/* Glassmorphism Dropdown Panel */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2.5 z-50 w-80 sm:w-96 bg-[#161618]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-4 flex flex-col gap-3">
+        <div className="absolute right-0 top-full mt-2.5 z-50 w-80 sm:w-96 bg-white/95 dark:bg-[#161618]/95 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-4 flex flex-col gap-3">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/[0.08] pb-3">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-white">Notifications</h3>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Notifications</h3>
               {unreadCount > 0 && (
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#0A84FF]/20 text-[#0A84FF]">
                   {unreadCount} new
@@ -216,11 +216,11 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           {/* List */}
           {notifications.length === 0 ? (
             <div className="py-8 flex flex-col items-center justify-center text-center">
-              <div className="w-10 h-10 rounded-full bg-white/[0.04] border border-white/10 flex items-center justify-center text-[#8E8E93] mb-2">
+              <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/[0.04] border border-slate-200 dark:border-white/10 flex items-center justify-center text-slate-400 dark:text-[#8E8E93] mb-2">
                 <Bell className="w-5 h-5" />
               </div>
-              <h4 className="text-xs font-semibold text-white">You're all caught up</h4>
-              <p className="text-[11px] text-[#8E8E93] mt-0.5">No notifications right now.</p>
+              <h4 className="text-xs font-semibold text-slate-800 dark:text-white">You're all caught up</h4>
+              <p className="text-[11px] text-slate-500 dark:text-[#8E8E93] mt-0.5">No notifications right now.</p>
             </div>
           ) : (
             <div className="max-h-96 overflow-y-auto flex flex-col gap-1.5 pr-0.5">
@@ -231,8 +231,8 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                     key={item.id}
                     onClick={() => handleItemClick(item)}
                     className={`p-3 rounded-xl border transition-all cursor-pointer flex items-start gap-3 group ${isUnread
-                        ? 'bg-[#0A84FF]/10 border-[#0A84FF]/30 hover:bg-[#0A84FF]/15'
-                        : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.06]'
+                        ? 'bg-blue-50/80 border-blue-200 hover:bg-blue-100/70 dark:bg-[#0A84FF]/10 dark:border-[#0A84FF]/30 dark:hover:bg-[#0A84FF]/15'
+                        : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/80 dark:bg-white/[0.02] dark:border-white/[0.06] dark:hover:bg-white/[0.06]'
                       }`}
                   >
                     <div className="w-7 h-7 rounded-full bg-[#0A84FF]/20 text-[#0A84FF] flex items-center justify-center shrink-0 mt-0.5">
@@ -244,10 +244,10 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
                     </div>
 
                     <div className="flex flex-col gap-1 min-w-0 flex-1">
-                      <p className="text-xs text-white leading-relaxed font-normal">
+                      <p className="text-xs text-slate-800 dark:text-white leading-relaxed font-normal">
                         {item.message}
                       </p>
-                      <span className="text-[10px] text-[#8E8E93]">
+                      <span className="text-[10px] text-slate-500 dark:text-[#8E8E93]">
                         {formatRelativeTime(item.createdAt)}
                       </span>
                     </div>
