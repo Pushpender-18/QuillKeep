@@ -15,11 +15,14 @@ import { GET as getCompanyById, PATCH as updateCompanyRoute } from '@/app/api/v1
 import { POST as changeStatusRoute } from '@/app/api/v1/companies/[id]/status/route';
 import { POST as bulkStatusRoute } from '@/app/api/v1/companies/status/route';
 import { POST as archiveRoute } from '@/app/api/v1/companies/archive/route';
+import { POST as restoreRoute } from '@/app/api/v1/companies/restore/route';
 import { POST as deleteRoute } from '@/app/api/v1/companies/delete/route';
 import { POST as addContactRoute } from '@/app/api/v1/companies/[id]/contacts/route';
 import { POST as postRemarkRoute } from '@/app/api/v1/companies/[id]/remarks/route';
 import { PATCH as updateRemarkRoute } from '@/app/api/v1/remarks/[id]/route';
 import { POST as createReminderRoute } from '@/app/api/v1/reminders/route';
+import { GET as getCompanyHistoryRoute } from '@/app/api/v1/companies/[id]/history/route';
+import { GET as getLookupsRoute } from '@/app/api/v1/lookups/route';
 
 // Web list query function to verify parity
 import { listCompanies } from '@/lib/services/companies';
@@ -230,14 +233,23 @@ describe('Contract Tests for Mobile JSON API (v1)', () => {
     const json2 = await res2.json();
     assert.equal(json2.ok, false);
     assert.equal(json2.error?.code, 'duplicate_name');
+    assert.deepEqual(json2.error?.details, {
+      existingCompanyId: companyId,
+      existingName: '__test__ Acme Unique Co',
+      existingIsArchived: false,
+    });
 
     // 3. Archive company, then try creating another with same name
     const rArchive = req('/api/v1/companies/archive', {
       method: 'POST',
       token: tokenA,
-      body: { id: companyId, reason: 'Testing duplicate on archive' },
+      body: { ids: [companyId], reason: 'Testing duplicate on archive' },
     });
-    await archiveRoute(rArchive);
+    const resArchive = await archiveRoute(rArchive);
+    assert.equal(resArchive.status, 200);
+    const jsonArchive = await resArchive.json();
+    assert.equal(jsonArchive.data?.updatedCount, 1);
+    assert.equal(jsonArchive.data?.skippedCount, 0);
 
     const r3 = req('/api/v1/companies', {
       method: 'POST',
@@ -245,10 +257,15 @@ describe('Contract Tests for Mobile JSON API (v1)', () => {
       body: { name: '__test__ ACME UNIQUE CO' },
     });
     const res3 = await createCompanyRoute(r3);
-    assert.equal(res3.status, 400);
+    assert.equal(res3.status, 409);
     const json3 = await res3.json();
     assert.equal(json3.ok, false);
-    assert.equal(json3.error?.code, 'archived_company');
+    assert.equal(json3.error?.code, 'duplicate_name');
+    assert.deepEqual(json3.error?.details, {
+      existingCompanyId: companyId,
+      existingName: '__test__ Acme Unique Co',
+      existingIsArchived: true,
+    });
   });
 
   test('5. Archived company writes rejected', async () => {
@@ -264,7 +281,7 @@ describe('Contract Tests for Mobile JSON API (v1)', () => {
     await archiveRoute(req('/api/v1/companies/archive', {
       method: 'POST',
       token: tokenA,
-      body: { id: compId },
+      body: { ids: [compId] },
     }));
 
     // Status change rejected
@@ -523,5 +540,263 @@ describe('Contract Tests for Mobile JSON API (v1)', () => {
       assert.equal(apiJson.data.items[i].id, webResult.items[i].id);
       assert.equal(apiJson.data.items[i].name, webResult.items[i].name);
     }
+  });
+
+  test('11. Points 1 & 2: Company list items shape and GET /companies/{id} with inactive assignee', async () => {
+    // Fetch a state and industry to link
+    const rLookups = req('/api/v1/lookups', { token: tokenA });
+    const resLookups = await getLookupsRoute(rLookups);
+    const jsonLookups = await resLookups.json();
+    const ind = jsonLookups.data.industries[0];
+    const st = jsonLookups.data.states[0];
+
+    // Create company assigned to active user A, with primary contact
+    const rCreate = req('/api/v1/companies', {
+      method: 'POST',
+      token: tokenA,
+      body: {
+        name: '__test__ Co Points 1 and 2',
+        industryId: ind.id,
+        stateId: st.id,
+        location: 'Bengaluru',
+        priority: 'high',
+        assignedTo: USER_A_ID,
+        contactName: 'Alice Primary',
+        contactEmail: 'alice@example.com',
+        contactPhone: '+919999999999',
+      },
+    });
+    const resCreate = await createCompanyRoute(rCreate);
+    assert.equal(resCreate.status, 201);
+    const compId = (await resCreate.json()).data.id;
+
+    // Verify GET /companies item shape
+    const rList = req('/api/v1/companies?q=Points+1+and+2', { token: tokenA });
+    const resList = await getCompanies(rList);
+    assert.equal(resList.status, 200);
+    const listJson = await resList.json();
+    const item = listJson.data.items.find((c: any) => c.id === compId);
+    assert.ok(item, 'Created company found in list');
+    assert.equal(item.name, '__test__ Co Points 1 and 2');
+    assert.equal(item.status, 'new');
+    assert.equal(item.priority, 'high');
+    assert.deepEqual(item.industry, { id: ind.id, name: ind.name });
+    assert.deepEqual(item.state, { id: st.id, name: st.name });
+    assert.equal(item.location, 'Bengaluru');
+    assert.equal(item.assignee?.id, USER_A_ID);
+    assert.equal(item.assignee?.isActive, true);
+    assert.equal(item.isArchived, false);
+    assert.deepEqual(item.primaryContact, {
+      name: 'Alice Primary',
+      email: 'alice@example.com',
+      phone: '+919999999999',
+    });
+
+    // Reassign company to deactivated User C
+    const rPatch = req(`/api/v1/companies/${compId}`, {
+      method: 'PATCH',
+      token: tokenA,
+      body: { assignedTo: USER_C_ID },
+    });
+    const resPatch = await updateCompanyRoute(rPatch, { params: Promise.resolve({ id: compId }) });
+    assert.equal(resPatch.status, 200);
+
+    // Verify GET /companies/{id} returns the same plus createdAt, contacts (each with isPrimary), and assignee even when inactive
+    const rGet = req(`/api/v1/companies/${compId}`, { token: tokenA });
+    const resGet = await getCompanyById(rGet, { params: Promise.resolve({ id: compId }) });
+    assert.equal(resGet.status, 200);
+    const getJson = await resGet.json();
+    const detail = getJson.data;
+
+    assert.equal(detail.id, compId);
+    assert.equal(detail.name, '__test__ Co Points 1 and 2');
+    assert.deepEqual(detail.industry, { id: ind.id, name: ind.name });
+    assert.deepEqual(detail.state, { id: st.id, name: st.name });
+    assert.ok(detail.createdAt, 'createdAt is returned');
+    assert.equal(detail.assignee?.id, USER_C_ID);
+    assert.equal(detail.assignee?.isActive, false); // Inactive assignee returned!
+    assert.ok(Array.isArray(detail.contacts) && detail.contacts.length >= 1);
+    assert.equal(detail.contacts[0].isPrimary, true);
+    assert.equal(detail.contacts[0].name, 'Alice Primary');
+  });
+
+  test('12. Point 3: GET /companies/{id}/history with actor, pagination, and reassigned names', async () => {
+    // 1. Create company assigned to User A
+    const rCreate = req('/api/v1/companies', {
+      method: 'POST',
+      token: tokenA,
+      body: { name: '__test__ Co History Point 3', assignedTo: USER_A_ID },
+    });
+    const resCreate = await createCompanyRoute(rCreate);
+    const compId = (await resCreate.json()).data.id;
+
+    // 2. Reassign to inactive User C
+    await updateCompanyRoute(
+      req(`/api/v1/companies/${compId}`, {
+        method: 'PATCH',
+        token: tokenA,
+        body: { assignedTo: USER_C_ID },
+      }),
+      { params: Promise.resolve({ id: compId }) }
+    );
+
+    // 3. Fetch history
+    const rHist = req(`/api/v1/companies/${compId}/history?page=1`, { token: tokenA });
+    const resHist = await getCompanyHistoryRoute(rHist, { params: Promise.resolve({ id: compId }) });
+    assert.equal(resHist.status, 200);
+    const histJson = await resHist.json();
+
+    assert.equal(histJson.ok, true);
+    assert.equal(histJson.data.page, 1);
+    assert.equal(histJson.data.pageSize, 50);
+    assert.ok(Array.isArray(histJson.data.items));
+
+    // Find reassigned item
+    const reassignedItem = histJson.data.items.find((i: any) => i.action === 'reassigned');
+    assert.ok(reassignedItem, 'Reassigned history log found');
+    assert.equal(reassignedItem.actor?.id, USER_A_ID);
+    assert.equal(reassignedItem.actor?.fullName, '__test__ Teammate A');
+    assert.deepEqual(reassignedItem.oldAssignee, { id: USER_A_ID, fullName: '__test__ Teammate A' });
+    assert.deepEqual(reassignedItem.newAssignee, { id: USER_C_ID, fullName: '__test__ Deactivated C' });
+  });
+
+  test('13. Point 4: PATCH /companies/{id} rejects unknown fields, never changes status, preserves customFields', async () => {
+    // Create company
+    const rCreate = req('/api/v1/companies', {
+      method: 'POST',
+      token: tokenA,
+      body: { name: '__test__ Co Patch Strict' },
+    });
+    const resCreate = await createCompanyRoute(rCreate);
+    const compId = (await resCreate.json()).data.id;
+
+    // Attempt to pass unknown field -> rejected with validation_error
+    const rUnknown = req(`/api/v1/companies/${compId}`, {
+      method: 'PATCH',
+      token: tokenA,
+      body: { unknownField: 'not allowed' },
+    });
+    const resUnknown = await updateCompanyRoute(rUnknown, { params: Promise.resolve({ id: compId }) });
+    assert.equal(resUnknown.status, 400);
+    const jsonUnknown = await resUnknown.json();
+    assert.equal(jsonUnknown.error?.code, 'validation_error');
+
+    // Attempt to change status via PATCH -> rejected with validation_error
+    const rStatusPatch = req(`/api/v1/companies/${compId}`, {
+      method: 'PATCH',
+      token: tokenA,
+      body: { status: 'contacted' },
+    });
+    const resStatusPatch = await updateCompanyRoute(rStatusPatch, { params: Promise.resolve({ id: compId }) });
+    assert.equal(resStatusPatch.status, 400);
+    const jsonStatusPatch = await resStatusPatch.json();
+    assert.equal(jsonStatusPatch.error?.code, 'validation_error');
+
+    // Valid partial update leaves unmentioned fields untouched
+    const rValidPatch = req(`/api/v1/companies/${compId}`, {
+      method: 'PATCH',
+      token: tokenA,
+      body: { location: 'Patched Location' },
+    });
+    const resValidPatch = await updateCompanyRoute(rValidPatch, { params: Promise.resolve({ id: compId }) });
+    assert.equal(resValidPatch.status, 200);
+
+    const rGet = req(`/api/v1/companies/${compId}`, { token: tokenA });
+    const resGet = await getCompanyById(rGet, { params: Promise.resolve({ id: compId }) });
+    const getJson = await resGet.json();
+    assert.equal(getJson.data.location, 'Patched Location');
+    assert.equal(getJson.data.name, '__test__ Co Patch Strict');
+    assert.equal(getJson.data.status, 'new');
+  });
+
+  test('14. Point 5: POST /companies/{id}/status returns updated company', async () => {
+    const rCreate = req('/api/v1/companies', {
+      method: 'POST',
+      token: tokenA,
+      body: { name: '__test__ Co Status Return' },
+    });
+    const resCreate = await createCompanyRoute(rCreate);
+    const compId = (await resCreate.json()).data.id;
+
+    const rStatus = req(`/api/v1/companies/${compId}/status`, {
+      method: 'POST',
+      token: tokenA,
+      body: { status: 'contacted' },
+    });
+    const resStatus = await changeStatusRoute(rStatus, { params: Promise.resolve({ id: compId }) });
+    assert.equal(resStatus.status, 200);
+    const jsonStatus = await resStatus.json();
+    assert.equal(jsonStatus.ok, true);
+    assert.equal(jsonStatus.data.id, compId);
+    assert.equal(jsonStatus.data.status, 'contacted');
+    assert.equal(jsonStatus.data.name, '__test__ Co Status Return');
+  });
+
+  test('15. Point 7: GET /lookups returns industries (id,name,isActive), states, and active profiles (id,fullName,email)', async () => {
+    const r = req('/api/v1/lookups', { token: tokenA });
+    const res = await getLookupsRoute(r);
+    assert.equal(res.status, 200);
+    const json = await res.json();
+    assert.equal(json.ok, true);
+
+    const { industries, states, profiles } = json.data;
+    assert.ok(Array.isArray(industries) && industries.length > 0);
+    assert.ok('id' in industries[0] && 'name' in industries[0] && 'isActive' in industries[0]);
+
+    assert.ok(Array.isArray(states) && states.length > 0);
+    assert.ok('id' in states[0] && 'name' in states[0]);
+
+    assert.ok(Array.isArray(profiles) && profiles.length > 0);
+    assert.ok('id' in profiles[0] && 'fullName' in profiles[0] && 'email' in profiles[0]);
+    // Ensure deactivated user C is not in active profiles
+    assert.ok(!profiles.some((p: any) => p.id === USER_C_ID), 'Deactivated user not included in active profiles');
+    assert.ok(profiles.some((p: any) => p.id === USER_A_ID), 'Active user A included in active profiles');
+  });
+
+  test('16. Point 8: Archive and restore accept ids array and return updated and skipped counts', async () => {
+    // Create company
+    const rCreate = req('/api/v1/companies', {
+      method: 'POST',
+      token: tokenA,
+      body: { name: '__test__ Co Archive Restore' },
+    });
+    const resCreate = await createCompanyRoute(rCreate);
+    const compId = (await resCreate.json()).data.id;
+
+    // Archive via ids array
+    const rArchive = req('/api/v1/companies/archive', {
+      method: 'POST',
+      token: tokenA,
+      body: { ids: [compId], reason: 'Test single archive via ids' },
+    });
+    const resArchive = await archiveRoute(rArchive);
+    assert.equal(resArchive.status, 200);
+    const jsonArchive = await resArchive.json();
+    assert.equal(jsonArchive.data?.updatedCount, 1);
+    assert.equal(jsonArchive.data?.skippedCount, 0);
+
+    // Archiving again skips it
+    const rArchiveAgain = req('/api/v1/companies/archive', {
+      method: 'POST',
+      token: tokenA,
+      body: { ids: [compId] },
+    });
+    const resArchiveAgain = await archiveRoute(rArchiveAgain);
+    assert.equal(resArchiveAgain.status, 200);
+    const jsonArchiveAgain = await resArchiveAgain.json();
+    assert.equal(jsonArchiveAgain.data?.updatedCount, 0);
+    assert.equal(jsonArchiveAgain.data?.skippedCount, 1);
+
+    // Restore via ids array
+    const rRestore = req('/api/v1/companies/restore', {
+      method: 'POST',
+      token: tokenA,
+      body: { ids: [compId] },
+    });
+    const resRestore = await restoreRoute(rRestore);
+    assert.equal(resRestore.status, 200);
+    const jsonRestore = await resRestore.json();
+    assert.equal(jsonRestore.data?.updatedCount, 1);
+    assert.equal(jsonRestore.data?.skippedCount, 0);
   });
 });

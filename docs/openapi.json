@@ -65,6 +65,15 @@
                 "example": {
                   "name": "Company name is required"
                 }
+              },
+              "details": {
+                "type": "object",
+                "additionalProperties": {},
+                "example": {
+                  "existingCompanyId": "51cff435-97fd-449a-929d-cbeb0352b205",
+                  "existingName": "Acme Corp",
+                  "existingIsArchived": false
+                }
               }
             },
             "required": [
@@ -416,12 +425,6 @@
                               },
                               "isActive": {
                                 "type": "boolean"
-                              },
-                              "uses": {
-                                "type": "number"
-                              },
-                              "companyCount": {
-                                "type": "number"
                               }
                             },
                             "required": [
@@ -468,16 +471,12 @@
                               },
                               "email": {
                                 "type": "string"
-                              },
-                              "isActive": {
-                                "type": "boolean"
                               }
                             },
                             "required": [
                               "id",
                               "fullName",
-                              "email",
-                              "isActive"
+                              "email"
                             ]
                           }
                         },
@@ -785,25 +784,49 @@
                               "name": {
                                 "type": "string"
                               },
-                              "industryId": {
+                              "status": {
+                                "type": "string"
+                              },
+                              "priority": {
+                                "type": "string"
+                              },
+                              "industry": {
                                 "type": [
-                                  "string",
+                                  "object",
                                   "null"
                                 ],
-                                "format": "uuid"
-                              },
-                              "industryName": {
-                                "type": [
-                                  "string",
-                                  "null"
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
                                 ]
                               },
-                              "stateId": {
+                              "state": {
                                 "type": [
-                                  "string",
+                                  "object",
                                   "null"
                                 ],
-                                "format": "uuid"
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "name": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "name"
+                                ]
                               },
                               "location": {
                                 "type": [
@@ -811,20 +834,7 @@
                                   "null"
                                 ]
                               },
-                              "status": {
-                                "type": "string"
-                              },
-                              "priority": {
-                                "type": "string"
-                              },
-                              "assignedTo": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "format": "uuid"
-                              },
-                              "assignedToProfile": {
+                              "assignee": {
                                 "type": [
                                   "object",
                                   "null"
@@ -837,14 +847,14 @@
                                   "fullName": {
                                     "type": "string"
                                   },
-                                  "email": {
-                                    "type": "string"
+                                  "isActive": {
+                                    "type": "boolean"
                                   }
                                 },
                                 "required": [
                                   "id",
                                   "fullName",
-                                  "email"
+                                  "isActive"
                                 ]
                               },
                               "lastContactedAt": {
@@ -863,42 +873,48 @@
                                   "null"
                                 ]
                               },
-                              "customFields": {
-                                "type": "object",
-                                "additionalProperties": {}
-                              },
-                              "createdAt": {
+                              "primaryContact": {
                                 "type": [
-                                  "string",
+                                  "object",
                                   "null"
                                 ],
-                                "format": "date-time"
-                              },
-                              "updatedAt": {
-                                "type": [
-                                  "string",
-                                  "null"
-                                ],
-                                "format": "date-time"
+                                "properties": {
+                                  "name": {
+                                    "type": "string"
+                                  },
+                                  "email": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  },
+                                  "phone": {
+                                    "type": [
+                                      "string",
+                                      "null"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "name",
+                                  "email",
+                                  "phone"
+                                ]
                               }
                             },
                             "required": [
                               "id",
                               "name",
-                              "industryId",
-                              "industryName",
-                              "stateId",
-                              "location",
                               "status",
                               "priority",
-                              "assignedTo",
-                              "assignedToProfile",
+                              "industry",
+                              "state",
+                              "location",
+                              "assignee",
                               "lastContactedAt",
                               "isArchived",
                               "archiveReason",
-                              "customFields",
-                              "createdAt",
-                              "updatedAt"
+                              "primaryContact"
                             ]
                           }
                         },
@@ -1453,30 +1469,48 @@
                         "name": {
                           "type": "string"
                         },
-                        "industryId": {
+                        "status": {
+                          "type": "string"
+                        },
+                        "priority": {
+                          "type": "string"
+                        },
+                        "industry": {
                           "type": [
-                            "string",
+                            "object",
                             "null"
                           ],
-                          "format": "uuid"
-                        },
-                        "industryName": {
-                          "type": [
-                            "string",
-                            "null"
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
                           ]
                         },
-                        "stateId": {
+                        "state": {
                           "type": [
-                            "string",
+                            "object",
                             "null"
                           ],
-                          "format": "uuid"
-                        },
-                        "stateName": {
-                          "type": [
-                            "string",
-                            "null"
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
                           ]
                         },
                         "location": {
@@ -1485,20 +1519,7 @@
                             "null"
                           ]
                         },
-                        "status": {
-                          "type": "string"
-                        },
-                        "priority": {
-                          "type": "string"
-                        },
-                        "assignedTo": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "uuid"
-                        },
-                        "assignedToProfile": {
+                        "assignee": {
                           "type": [
                             "object",
                             "null"
@@ -1511,19 +1532,22 @@
                             "fullName": {
                               "type": "string"
                             },
-                            "email": {
-                              "type": "string"
+                            "isActive": {
+                              "type": "boolean"
                             }
                           },
                           "required": [
                             "id",
                             "fullName",
-                            "email"
+                            "isActive"
                           ]
                         },
-                        "customFields": {
-                          "type": "object",
-                          "additionalProperties": {}
+                        "lastContactedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
                         },
                         "isArchived": {
                           "type": "boolean"
@@ -1534,35 +1558,35 @@
                             "null"
                           ]
                         },
-                        "archivedAt": {
+                        "primaryContact": {
                           "type": [
-                            "string",
+                            "object",
                             "null"
                           ],
-                          "format": "date-time"
-                        },
-                        "archivedBy": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "uuid"
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "phone": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone"
+                          ]
                         },
                         "createdAt": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "date-time"
-                        },
-                        "updatedAt": {
-                          "type": [
-                            "string",
-                            "null"
-                          ],
-                          "format": "date-time"
-                        },
-                        "lastContactedAt": {
                           "type": [
                             "string",
                             "null"
@@ -1625,28 +1649,26 @@
                               "createdAt"
                             ]
                           }
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {}
                         }
                       },
                       "required": [
                         "id",
                         "name",
-                        "industryId",
-                        "industryName",
-                        "stateId",
-                        "stateName",
-                        "location",
                         "status",
                         "priority",
-                        "assignedTo",
-                        "assignedToProfile",
-                        "customFields",
+                        "industry",
+                        "state",
+                        "location",
+                        "assignee",
+                        "lastContactedAt",
                         "isArchived",
                         "archiveReason",
-                        "archivedAt",
-                        "archivedBy",
+                        "primaryContact",
                         "createdAt",
-                        "updatedAt",
-                        "lastContactedAt",
                         "contacts"
                       ]
                     }
@@ -2018,7 +2040,7 @@
         },
         "responses": {
           "200": {
-            "description": "Status changed",
+            "description": "Updated company",
             "content": {
               "application/json": {
                 "schema": {
@@ -2034,12 +2056,214 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "success": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "string"
+                        },
+                        "priority": {
+                          "type": "string"
+                        },
+                        "industry": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ]
+                        },
+                        "state": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "name": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name"
+                          ]
+                        },
+                        "location": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "assignee": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "format": "uuid"
+                            },
+                            "fullName": {
+                              "type": "string"
+                            },
+                            "isActive": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "fullName",
+                            "isActive"
+                          ]
+                        },
+                        "lastContactedAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "isArchived": {
                           "type": "boolean"
+                        },
+                        "archiveReason": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "primaryContact": {
+                          "type": [
+                            "object",
+                            "null"
+                          ],
+                          "properties": {
+                            "name": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            },
+                            "phone": {
+                              "type": [
+                                "string",
+                                "null"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "email",
+                            "phone"
+                          ]
+                        },
+                        "createdAt": {
+                          "type": [
+                            "string",
+                            "null"
+                          ],
+                          "format": "date-time"
+                        },
+                        "contacts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "companyId": {
+                                "type": "string",
+                                "format": "uuid"
+                              },
+                              "name": {
+                                "type": "string"
+                              },
+                              "jobTitle": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "email": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "phone": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ]
+                              },
+                              "isPrimary": {
+                                "type": "boolean"
+                              },
+                              "createdAt": {
+                                "type": [
+                                  "string",
+                                  "null"
+                                ],
+                                "format": "date-time"
+                              }
+                            },
+                            "required": [
+                              "id",
+                              "companyId",
+                              "name",
+                              "jobTitle",
+                              "email",
+                              "phone",
+                              "isPrimary",
+                              "createdAt"
+                            ]
+                          }
+                        },
+                        "customFields": {
+                          "type": "object",
+                          "additionalProperties": {}
                         }
                       },
                       "required": [
-                        "success"
+                        "id",
+                        "name",
+                        "status",
+                        "priority",
+                        "industry",
+                        "state",
+                        "location",
+                        "assignee",
+                        "lastContactedAt",
+                        "isArchived",
+                        "archiveReason",
+                        "primaryContact",
+                        "createdAt",
+                        "contacts"
                       ]
                     }
                   },
@@ -2525,10 +2749,6 @@
                     "minItems": 1,
                     "maxItems": 500
                   },
-                  "id": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
                   "reason": {
                     "type": [
                       "string",
@@ -2541,7 +2761,10 @@
                       "null"
                     ]
                   }
-                }
+                },
+                "required": [
+                  "ids"
+                ]
               }
             }
           }
@@ -2564,13 +2787,17 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "success": {
-                          "type": "boolean"
-                        },
                         "updatedCount": {
                           "type": "number"
+                        },
+                        "skippedCount": {
+                          "type": "number"
                         }
-                      }
+                      },
+                      "required": [
+                        "updatedCount",
+                        "skippedCount"
+                      ]
                     }
                   },
                   "required": [
@@ -2692,12 +2919,11 @@
                     },
                     "minItems": 1,
                     "maxItems": 500
-                  },
-                  "id": {
-                    "type": "string",
-                    "format": "uuid"
                   }
-                }
+                },
+                "required": [
+                  "ids"
+                ]
               }
             }
           }
@@ -2720,13 +2946,17 @@
                     "data": {
                       "type": "object",
                       "properties": {
-                        "success": {
-                          "type": "boolean"
-                        },
                         "updatedCount": {
                           "type": "number"
+                        },
+                        "skippedCount": {
+                          "type": "number"
                         }
-                      }
+                      },
+                      "required": [
+                        "updatedCount",
+                        "skippedCount"
+                      ]
                     }
                   },
                   "required": [
@@ -4008,6 +4238,14 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
           }
         ],
         "responses": {
@@ -4044,15 +4282,24 @@
                               "action": {
                                 "type": "string"
                               },
-                              "actorId": {
+                              "actor": {
                                 "type": [
-                                  "string",
+                                  "object",
                                   "null"
                                 ],
-                                "format": "uuid"
-                              },
-                              "actorName": {
-                                "type": "string"
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "fullName": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "fullName"
+                                ]
                               },
                               "oldValue": {
                                 "type": [
@@ -4076,24 +4323,72 @@
                                   "null"
                                 ],
                                 "format": "date-time"
+                              },
+                              "oldAssignee": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "fullName": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "fullName"
+                                ]
+                              },
+                              "newAssignee": {
+                                "type": [
+                                  "object",
+                                  "null"
+                                ],
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                  },
+                                  "fullName": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "id",
+                                  "fullName"
+                                ]
                               }
                             },
                             "required": [
                               "id",
-                              "companyId",
                               "action",
-                              "actorId",
-                              "actorName",
+                              "actor",
                               "oldValue",
                               "newValue",
                               "details",
                               "createdAt"
                             ]
                           }
+                        },
+                        "total": {
+                          "type": "number"
+                        },
+                        "page": {
+                          "type": "number"
+                        },
+                        "pageSize": {
+                          "type": "number"
                         }
                       },
                       "required": [
-                        "items"
+                        "items",
+                        "total",
+                        "page",
+                        "pageSize"
                       ]
                     }
                   },

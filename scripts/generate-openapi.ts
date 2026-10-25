@@ -44,6 +44,9 @@ const ErrorResponseSchema = registry.register(
       fields: z.record(z.string(), z.string()).optional().openapi({
         example: { name: 'Company name is required' },
       }),
+      details: z.record(z.string(), z.any()).optional().openapi({
+        example: { existingCompanyId: '51cff435-97fd-449a-929d-cbeb0352b205', existingName: 'Acme Corp', existingIsArchived: false },
+      }),
     }),
   })
 );
@@ -163,12 +166,10 @@ registry.registerPath({
             id: z.string().uuid(),
             name: z.string(),
             isActive: z.boolean(),
-            uses: z.number().optional(),
-            companyCount: z.number().optional(),
           })
         ),
         states: z.array(z.object({ id: z.string().uuid(), name: z.string(), isActive: z.boolean() })),
-        profiles: z.array(z.object({ id: z.string().uuid(), fullName: z.string(), email: z.string(), isActive: z.boolean() })),
+        profiles: z.array(z.object({ id: z.string().uuid(), fullName: z.string(), email: z.string() })),
         customFields: z.array(
           z.object({
             id: z.string().uuid(),
@@ -213,20 +214,22 @@ registry.registerPath({
           z.object({
             id: z.string().uuid(),
             name: z.string(),
-            industryId: z.string().uuid().nullable(),
-            industryName: z.string().nullable(),
-            stateId: z.string().uuid().nullable(),
-            location: z.string().nullable(),
             status: z.string(),
             priority: z.string(),
-            assignedTo: z.string().uuid().nullable(),
-            assignedToProfile: z.object({ id: z.string().uuid(), fullName: z.string(), email: z.string() }).nullable(),
+            industry: z.object({ id: z.string().uuid(), name: z.string() }).nullable(),
+            state: z.object({ id: z.string().uuid(), name: z.string() }).nullable(),
+            location: z.string().nullable(),
+            assignee: z.object({ id: z.string().uuid(), fullName: z.string(), isActive: z.boolean() }).nullable(),
             lastContactedAt: z.string().datetime().nullable(),
             isArchived: z.boolean(),
             archiveReason: z.string().nullable(),
-            customFields: z.record(z.string(), z.any()),
-            createdAt: z.string().datetime().nullable(),
-            updatedAt: z.string().datetime().nullable(),
+            primaryContact: z
+              .object({
+                name: z.string(),
+                email: z.string().nullable(),
+                phone: z.string().nullable(),
+              })
+              .nullable(),
           })
         ),
         total: z.number(),
@@ -308,23 +311,23 @@ registry.registerPath({
       z.object({
         id: z.string().uuid(),
         name: z.string(),
-        industryId: z.string().uuid().nullable(),
-        industryName: z.string().nullable(),
-        stateId: z.string().uuid().nullable(),
-        stateName: z.string().nullable(),
-        location: z.string().nullable(),
         status: z.string(),
         priority: z.string(),
-        assignedTo: z.string().uuid().nullable(),
-        assignedToProfile: z.object({ id: z.string().uuid(), fullName: z.string(), email: z.string() }).nullable(),
-        customFields: z.record(z.string(), z.any()),
+        industry: z.object({ id: z.string().uuid(), name: z.string() }).nullable(),
+        state: z.object({ id: z.string().uuid(), name: z.string() }).nullable(),
+        location: z.string().nullable(),
+        assignee: z.object({ id: z.string().uuid(), fullName: z.string(), isActive: z.boolean() }).nullable(),
+        lastContactedAt: z.string().datetime().nullable(),
         isArchived: z.boolean(),
         archiveReason: z.string().nullable(),
-        archivedAt: z.string().datetime().nullable(),
-        archivedBy: z.string().uuid().nullable(),
+        primaryContact: z
+          .object({
+            name: z.string(),
+            email: z.string().nullable(),
+            phone: z.string().nullable(),
+          })
+          .nullable(),
         createdAt: z.string().datetime().nullable(),
-        updatedAt: z.string().datetime().nullable(),
-        lastContactedAt: z.string().datetime().nullable(),
         contacts: z.array(
           z.object({
             id: z.string().uuid(),
@@ -337,6 +340,7 @@ registry.registerPath({
             createdAt: z.string().datetime().nullable(),
           })
         ),
+        customFields: z.record(z.string(), z.any()).optional(),
       }),
       'Company details'
     ),
@@ -395,7 +399,43 @@ registry.registerPath({
     },
   },
   responses: {
-    200: successResponse(z.object({ success: z.boolean() }), 'Status changed'),
+    200: successResponse(
+      z.object({
+        id: z.string().uuid(),
+        name: z.string(),
+        status: z.string(),
+        priority: z.string(),
+        industry: z.object({ id: z.string().uuid(), name: z.string() }).nullable(),
+        state: z.object({ id: z.string().uuid(), name: z.string() }).nullable(),
+        location: z.string().nullable(),
+        assignee: z.object({ id: z.string().uuid(), fullName: z.string(), isActive: z.boolean() }).nullable(),
+        lastContactedAt: z.string().datetime().nullable(),
+        isArchived: z.boolean(),
+        archiveReason: z.string().nullable(),
+        primaryContact: z
+          .object({
+            name: z.string(),
+            email: z.string().nullable(),
+            phone: z.string().nullable(),
+          })
+          .nullable(),
+        createdAt: z.string().datetime().nullable(),
+        contacts: z.array(
+          z.object({
+            id: z.string().uuid(),
+            companyId: z.string().uuid(),
+            name: z.string(),
+            jobTitle: z.string().nullable(),
+            email: z.string().nullable(),
+            phone: z.string().nullable(),
+            isPrimary: z.boolean(),
+            createdAt: z.string().datetime().nullable(),
+          })
+        ),
+        customFields: z.record(z.string(), z.any()).optional(),
+      }),
+      'Updated company'
+    ),
     ...commonErrorResponses,
   },
 });
@@ -466,8 +506,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            ids: z.array(z.string().uuid()).min(1).max(500).optional(),
-            id: z.string().uuid().optional(),
+            ids: z.array(z.string().uuid()).min(1).max(500),
             reason: z.string().nullable().optional(),
             note: z.string().nullable().optional(),
           }),
@@ -476,7 +515,7 @@ registry.registerPath({
     },
   },
   responses: {
-    200: successResponse(z.object({ success: z.boolean().optional(), updatedCount: z.number().optional() }), 'Archived'),
+    200: successResponse(z.object({ updatedCount: z.number(), skippedCount: z.number() }), 'Archived'),
     ...commonErrorResponses,
   },
 });
@@ -491,15 +530,14 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: z.object({
-            ids: z.array(z.string().uuid()).min(1).max(500).optional(),
-            id: z.string().uuid().optional(),
+            ids: z.array(z.string().uuid()).min(1).max(500),
           }),
         },
       },
     },
   },
   responses: {
-    200: successResponse(z.object({ success: z.boolean().optional(), updatedCount: z.number().optional() }), 'Restored'),
+    200: successResponse(z.object({ updatedCount: z.number(), skippedCount: z.number() }), 'Restored'),
     ...commonErrorResponses,
   },
 });
@@ -672,23 +710,30 @@ registry.registerPath({
   path: '/api/v1/companies/{id}/history',
   summary: 'Get audit history logs for company',
   security: [{ bearerAuth: [] }],
-  parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+  parameters: [
+    { name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } },
+    { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+  ],
   responses: {
     200: successResponse(
       z.object({
         items: z.array(
           z.object({
             id: z.string().uuid(),
-            companyId: z.string().uuid(),
+            companyId: z.string().uuid().optional(),
             action: z.string(),
-            actorId: z.string().uuid().nullable(),
-            actorName: z.string(),
+            actor: z.object({ id: z.string().uuid(), fullName: z.string() }).nullable(),
             oldValue: z.string().nullable(),
             newValue: z.string().nullable(),
             details: z.record(z.string(), z.any()),
             createdAt: z.string().datetime().nullable(),
+            oldAssignee: z.object({ id: z.string().uuid(), fullName: z.string() }).nullable().optional(),
+            newAssignee: z.object({ id: z.string().uuid(), fullName: z.string() }).nullable().optional(),
           })
         ),
+        total: z.number(),
+        page: z.number(),
+        pageSize: z.number(),
       }),
       'History logs'
     ),

@@ -33,15 +33,17 @@ export const companyCreateSchema = z.object({
   customFields: z.record(z.string(), z.any()).nullable().optional(),
 });
 
-export const companyUpdateSchema = z.object({
-  name: z.string().trim().min(1, 'Company name cannot be empty').optional(),
-  industryId: z.string().nullable().optional(),
-  stateId: z.string().nullable().optional(),
-  location: z.string().nullable().optional(),
-  priority: companyPrioritySchema.optional(),
-  assignedTo: z.string().nullable().optional(),
-  customFields: z.record(z.string(), z.any()).nullable().optional(),
-});
+export const companyUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1, 'Company name cannot be empty').optional(),
+    industryId: z.string().nullable().optional(),
+    stateId: z.string().nullable().optional(),
+    location: z.string().nullable().optional(),
+    priority: companyPrioritySchema.optional(),
+    assignedTo: z.string().nullable().optional(),
+    customFields: z.record(z.string(), z.any()).nullable().optional(),
+  })
+  .strict();
 
 export const companyStatusChangeSchema = z.object({
   status: companyStatusSchema,

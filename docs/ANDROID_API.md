@@ -69,7 +69,7 @@ All responses are strictly formatted as JSON.
 | `account_inactive` | 403 | Authenticated user profile has `isActive = false` or does not exist. |
 | `forbidden` | 403 | Attempting an action forbidden to the user (e.g. editing another author's remark). |
 | `not_found` | 404 | Target company, contact, reminder, or remark does not exist. |
-| `duplicate_name` | 409 | A company or custom field with this name already exists (case-insensitive, trimmed). |
+| `duplicate_name` | 409 | A company or custom field with this name already exists (case-insensitive, trimmed). Includes `error.details: { existingCompanyId, existingName, existingIsArchived }`. |
 | `archived_company` | 400 | Attempted mutation (status change, contact modification, reminder creation, remark addition) on an archived company. |
 | `date_required` | 400 | Transitioning to `contact_later` or `meeting_scheduled` without a mandatory `dueAt` / reminder date. |
 | `past_date` | 400 | Providing a reminder or follow-up date/time that is in the past. |
@@ -159,19 +159,19 @@ All endpoints are hosted at `/api/v1/*` and require `Authorization: Bearer <toke
 ### Metadata & User
 - `GET /api/v1/meta` - API version and `minAppVersion`.
 - `GET /api/v1/me` - Authenticated user profile.
-- `GET /api/v1/lookups` - Active industries (ranked), states, active teammates, and custom field definitions.
+- `GET /api/v1/lookups` - Industries (`id`, `name`, `isActive`), states (`id`, `name`, `isActive`), active profiles (`id`, `fullName`, `email`), and active custom field definitions. Sorting for forms is handled by the client.
 
 ### Companies
-- `GET /api/v1/companies` - List companies (params: `view`, `scope`, `q`, `status`, `state`, `industry`, `assigned`, `priority`, `location`, `cf.<fieldId>`, `sort`, `dir`, `page`, `pageSize`). Returns `{ items, total, page, pageSize }` (25 per page by default).
+- `GET /api/v1/companies` - List companies (params: `view`, `scope`, `q`, `status`, `state`, `industry`, `assigned`, `priority`, `location`, `cf.<fieldId>`, `sort`, `dir`, `page`, `pageSize`). Company list items include: `id`, `name`, `status`, `priority`, `industry` (`{id,name}` or `null`), `state` (`{id,name}` or `null`), `location`, `assignee` (`{id,fullName,isActive}` or `null`), `lastContactedAt`, `isArchived`, `archiveReason`, `primaryContact` (`{name,email,phone}` or `null`).
 - `GET /api/v1/companies/ids` - Matching company IDs capped at 500 for select-all-matching.
-- `GET /api/v1/companies/{id}` - Complete details with contacts and custom field values.
-- `POST /api/v1/companies` - Create company with optional primary contact and initial status.
-- `PATCH /api/v1/companies/{id}` - Update company details and custom fields.
-- `POST /api/v1/companies/{id}/status` - Update status via `change_company_status`.
+- `GET /api/v1/companies/{id}` - Complete details returning the same fields as company list item plus `createdAt`, `contacts[]` (each with `isPrimary`), and `assignee` (resolved even if inactive), along with `customFields`.
+- `POST /api/v1/companies` - Create company with optional primary contact and initial status. If duplicate name exists (active or archived), returns `duplicate_name` (409) with `details: { existingCompanyId, existingName, existingIsArchived }`.
+- `PATCH /api/v1/companies/{id}` - Partial update of company details. Any field not present in the body stays untouched, in particular `customFields`. Status is never changed via PATCH. Unknown fields are rejected with `validation_error`.
+- `POST /api/v1/companies/{id}/status` - Takes `{status, dueAt?, reminderType?, note?}` and returns the updated company. Error codes: `date_required`, `past_date`, `archived_company`.
 - `POST /api/v1/companies/status` - Bulk change status (max 500).
 - `POST /api/v1/companies/reassign` - Bulk reassign companies (max 500).
-- `POST /api/v1/companies/archive` - Bulk or single archive.
-- `POST /api/v1/companies/restore` - Bulk or single restore.
+- `POST /api/v1/companies/archive` - Accept an `ids` array (single ID `[id]` for single use) and return `{ updatedCount, skippedCount }`.
+- `POST /api/v1/companies/restore` - Accept an `ids` array (single ID `[id]` for single use) and return `{ updatedCount, skippedCount }`.
 - `POST /api/v1/companies/delete-preview` - Preview deletion item counts (archived companies only).
 - `POST /api/v1/companies/delete` - Permanently delete archived companies (server-side `confirmText` check).
 - `GET /api/v1/companies/export` - Export matched companies (`?format=csv` or `?format=xlsx`).
@@ -183,7 +183,7 @@ All endpoints are hosted at `/api/v1/*` and require `Authorization: Bearer <toke
 - `POST /api/v1/contacts/{id}/make-primary` - Mark as primary contact.
 
 ### Remarks & Audit History
-- `GET /api/v1/companies/{id}/history` - Historical change log.
+- `GET /api/v1/companies/{id}/history` - Historical change log (50 per page, newest first, `page` query parameter). Items include: `id`, `action`, `oldValue`, `newValue`, `details`, `createdAt`, `actor` (`{id,fullName}` or `null`). For action `reassigned`, also returns `oldAssignee` and `newAssignee` (`{id,fullName}` or `null`) resolved on the server (inactive users included).
 - `GET /api/v1/companies/{id}/remarks` - Paginated remarks (newest first).
 - `POST /api/v1/companies/{id}/remarks` - Create remark with `@FullName` mentions.
 - `PATCH /api/v1/remarks/{id}` - Edit remark body and mentions (author only).

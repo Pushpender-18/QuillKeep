@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import {
-  getRankedIndustries,
+  getIndustries,
   getStates,
   getProfiles,
   getCustomFieldDefinitionsCached,
@@ -10,30 +10,24 @@ import { ServiceContext } from './companies';
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function getLookups(_ctx?: ServiceContext) {
-  const [rankedIndustries, allStates, allProfiles, customFieldDefs] = await Promise.all([
-    getRankedIndustries(),
+  const [allIndustries, allStates, allProfiles, customFieldDefs] = await Promise.all([
+    getIndustries(),
     getStates(),
     getProfiles(),
     getCustomFieldDefinitionsCached(),
   ]);
 
-  const activeIndustries = rankedIndustries
-    .filter((i) => i.isActive !== false)
-    .map((i) => ({
-      id: i.id,
-      name: i.name,
-      isActive: i.isActive,
-      uses: (i as any).uses || 0,
-      companyCount: (i as any).companyCount || 0,
-    }));
+  const industries = allIndustries.map((i) => ({
+    id: i.id,
+    name: i.name,
+    isActive: i.isActive,
+  }));
 
-  const activeStates = allStates
-    .filter((s) => s.isActive !== false)
-    .map((s) => ({
-      id: s.id,
-      name: s.name,
-      isActive: s.isActive,
-    }));
+  const states = allStates.map((s) => ({
+    id: s.id,
+    name: s.name,
+    isActive: s.isActive,
+  }));
 
   const activeProfiles = allProfiles
     .filter((p) => p.isActive !== false)
@@ -41,7 +35,6 @@ export async function getLookups(_ctx?: ServiceContext) {
       id: p.id,
       fullName: p.fullName || p.name || '',
       email: p.email || '',
-      isActive: p.isActive,
     }));
 
   const activeCustomFields = customFieldDefs
@@ -55,8 +48,8 @@ export async function getLookups(_ctx?: ServiceContext) {
     }));
 
   return {
-    industries: activeIndustries,
-    states: activeStates,
+    industries,
+    states,
     profiles: activeProfiles,
     customFields: activeCustomFields,
   };

@@ -4,7 +4,7 @@ import { db } from '@/prisma/db';
 import { convertBigInts } from '@/lib/utils';
 import { buildCompanyWhere, getFilteredCompanyIds, RawSearchParams } from '@/lib/companies-query';
 import { getCustomFieldDefinitions, mergeAndValidateCustomFields } from '@/lib/custom-fields';
-import { getProfiles, getIndustries, getStates } from '@/lib/lookups';
+import { getProfiles, getIndustries, getStates, CleanProfile } from '@/lib/lookups';
 import { ApiError } from '@/lib/api/errors';
 import {
   companyCreateSchema,
@@ -42,9 +42,10 @@ export async function checkCompanyName(
       exists: true,
       isArchived: Boolean(match.isArchived),
       companyId: String(match.id),
+      name: String(match.name),
     };
   }
-  return { exists: false, isArchived: false, companyId: null };
+  return { exists: false, isArchived: false, companyId: null, name: null };
 }
 
 /**
@@ -127,33 +128,62 @@ export async function listCompanies(ctx: ServiceContext, rawParams: RawSearchPar
   const startIndex = (page - 1) * pageSize;
   const pagedRows = filtered.slice(startIndex, startIndex + pageSize);
 
-  const [cleanIndustries, cleanProfiles] = await Promise.all([
+  const [cleanIndustries, cleanStates, cleanProfiles] = await Promise.all([
     getIndustries(),
+    getStates(),
     getProfiles(),
   ]);
 
   const industryMap = new Map(cleanIndustries.map((i) => [i.id, i.name]));
+  const stateMap = new Map(cleanStates.map((s) => [s.id, s.name]));
   const profileMap = new Map(cleanProfiles.map((p) => [p.id, p]));
 
   const items = pagedRows.map((c: any) => {
     const assignedId = c.assignedTo ? String(c.assignedTo) : null;
     const assignedProfile = assignedId ? profileMap.get(assignedId) || null : null;
     const indId = c.industryId ? String(c.industryId) : null;
+    const stateId = c.stateId ? String(c.stateId) : null;
+
+    const contacts = contactsMap.get(String(c.id)) || [];
+    const primary = contacts.find((ct: any) => Boolean(ct.isPrimary)) || null;
+
+    const industry = indId ? { id: indId, name: industryMap.get(indId) || '' } : null;
+    const state = stateId ? { id: stateId, name: stateMap.get(stateId) || '' } : null;
+    const assignee = assignedProfile
+      ? {
+          id: assignedProfile.id,
+          fullName: assignedProfile.fullName || assignedProfile.name || 'User',
+          isActive: Boolean(assignedProfile.isActive),
+        }
+      : null;
+    const primaryContact = primary
+      ? {
+          name: String(primary.name || ''),
+          email: primary.email ? String(primary.email) : null,
+          phone: primary.phone ? String(primary.phone) : null,
+        }
+      : null;
 
     return {
       id: String(c.id),
       name: String(c.name),
-      industryId: indId,
-      industryName: indId ? industryMap.get(indId) || null : null,
-      stateId: c.stateId ? String(c.stateId) : null,
-      location: c.location ? String(c.location) : null,
       status: String(c.status),
       priority: String(c.priority),
-      assignedTo: assignedId,
-      assignedToProfile: assignedProfile,
+      industry,
+      state,
+      location: c.location ? String(c.location) : null,
+      assignee,
       lastContactedAt: c.lastContactedAt ? new Date(c.lastContactedAt).toISOString() : null,
       isArchived: Boolean(c.isArchived),
       archiveReason: c.archiveReason ? String(c.archiveReason) : null,
+      primaryContact,
+      // Backward compatibility fields
+      industryId: indId,
+      industryName: indId ? industryMap.get(indId) || null : null,
+      stateId,
+      stateName: stateId ? stateMap.get(stateId) || null : null,
+      assignedTo: assignedId,
+      assignedToProfile: assignedProfile,
       customFields: c.customFields || {},
       createdAt: c.createdAt ? new Date(c.createdAt).toISOString() : null,
       updatedAt: c.updatedAt ? new Date(c.updatedAt).toISOString() : null,
@@ -208,36 +238,76 @@ export async function getCompany(ctx: ServiceContext, input: { id: string }) {
   const stateId = cleanCompany.stateId ? String(cleanCompany.stateId) : null;
   const assignedId = cleanCompany.assignedTo ? String(cleanCompany.assignedTo) : null;
 
+  let assignedProfile = assignedId ? profileMap.get(assignedId) || null : null;
+  if (assignedId && !assignedProfile) {
+    const p = await prisma.orm.public.Profiles.where({ id: assignedId }).first();
+    if (p) {
+      assignedProfile = {
+        id: String(p.id),
+        fullName: String(p.fullName || ''),
+        email: String(p.email || ''),
+        name: String(p.fullName || p.email || 'User'),
+        isActive: Boolean(p.isActive),
+      };
+    }
+  }
+
+  const primary = cleanContacts.find((ct: any) => Boolean(ct.isPrimary)) || null;
+  const primaryContact = primary
+    ? {
+        name: String(primary.name || ''),
+        email: primary.email ? String(primary.email) : null,
+        phone: primary.phone ? String(primary.phone) : null,
+      }
+    : null;
+
+  const industry = indId ? { id: indId, name: industryMap.get(indId) || '' } : null;
+  const state = stateId ? { id: stateId, name: stateMap.get(stateId) || '' } : null;
+  const assignee = assignedProfile
+    ? {
+        id: assignedProfile.id,
+        fullName: assignedProfile.fullName || assignedProfile.name || 'User',
+        isActive: Boolean(assignedProfile.isActive),
+      }
+    : null;
+
+  const contacts = cleanContacts.map((ct: any) => ({
+    id: String(ct.id),
+    companyId: String(ct.companyId),
+    name: String(ct.name),
+    jobTitle: ct.jobTitle ? String(ct.jobTitle) : null,
+    email: ct.email ? String(ct.email) : null,
+    phone: ct.phone ? String(ct.phone) : null,
+    isPrimary: Boolean(ct.isPrimary),
+    createdAt: ct.createdAt ? new Date(ct.createdAt).toISOString() : null,
+  }));
+
   return {
     id: String(cleanCompany.id),
     name: String(cleanCompany.name),
-    industryId: indId,
-    industryName: indId ? industryMap.get(indId) || null : null,
-    stateId: stateId,
-    stateName: stateId ? stateMap.get(stateId) || null : null,
-    location: cleanCompany.location ? String(cleanCompany.location) : null,
     status: String(cleanCompany.status),
     priority: String(cleanCompany.priority),
-    assignedTo: assignedId,
-    assignedToProfile: assignedId ? profileMap.get(assignedId) || null : null,
-    customFields: cleanCompany.customFields || {},
+    industry,
+    state,
+    location: cleanCompany.location ? String(cleanCompany.location) : null,
+    assignee,
+    lastContactedAt: cleanCompany.lastContactedAt ? new Date(cleanCompany.lastContactedAt).toISOString() : null,
     isArchived: Boolean(cleanCompany.isArchived),
     archiveReason: cleanCompany.archiveReason ? String(cleanCompany.archiveReason) : null,
+    primaryContact,
+    createdAt: cleanCompany.createdAt ? new Date(cleanCompany.createdAt).toISOString() : null,
+    contacts,
+    customFields: cleanCompany.customFields || {},
+    // Compatibility fields
+    industryId: indId,
+    industryName: indId ? industryMap.get(indId) || null : null,
+    stateId,
+    stateName: stateId ? stateMap.get(stateId) || null : null,
+    assignedTo: assignedId,
+    assignedToProfile: assignedProfile,
     archivedAt: cleanCompany.archivedAt ? new Date(cleanCompany.archivedAt).toISOString() : null,
     archivedBy: cleanCompany.archivedBy ? String(cleanCompany.archivedBy) : null,
-    createdAt: cleanCompany.createdAt ? new Date(cleanCompany.createdAt).toISOString() : null,
     updatedAt: cleanCompany.updatedAt ? new Date(cleanCompany.updatedAt).toISOString() : null,
-    lastContactedAt: cleanCompany.lastContactedAt ? new Date(cleanCompany.lastContactedAt).toISOString() : null,
-    contacts: cleanContacts.map((ct: any) => ({
-      id: String(ct.id),
-      companyId: String(ct.companyId),
-      name: String(ct.name),
-      jobTitle: ct.jobTitle ? String(ct.jobTitle) : null,
-      email: ct.email ? String(ct.email) : null,
-      phone: ct.phone ? String(ct.phone) : null,
-      isPrimary: Boolean(ct.isPrimary),
-      createdAt: ct.createdAt ? new Date(ct.createdAt).toISOString() : null,
-    })),
   };
 }
 
@@ -250,10 +320,11 @@ export async function createCompany(ctx: ServiceContext, input: any) {
   // Check uniqueness
   const check = await checkCompanyName(ctx, { name: parsed.name });
   if (check.exists) {
-    if (check.isArchived) {
-      throw ApiError.archivedCompany('This company is archived.');
-    }
-    throw ApiError.duplicateName('A company with this name already exists');
+    throw ApiError.duplicateName('A company with this name already exists', {
+      existingCompanyId: check.companyId!,
+      existingName: check.name!,
+      existingIsArchived: check.isArchived,
+    });
   }
 
   // Mandatory date validation for contact_later or meeting_scheduled
@@ -353,10 +424,11 @@ export async function updateCompany(ctx: ServiceContext, input: { id: string; da
   if (parsed.name && parsed.name.trim().toLowerCase() !== String(cleanExisting.name).trim().toLowerCase()) {
     const check = await checkCompanyName(ctx, { name: parsed.name, excludeId: id });
     if (check.exists) {
-      if (check.isArchived) {
-        throw ApiError.archivedCompany('This company name matches an archived company.');
-      }
-      throw ApiError.duplicateName('A company with this name already exists');
+      throw ApiError.duplicateName('A company with this name already exists', {
+        existingCompanyId: check.companyId!,
+        existingName: check.name!,
+        existingIsArchived: check.isArchived,
+      });
     }
   }
 
@@ -449,7 +521,7 @@ export async function changeCompanyStatus(
     await tx.execute(plan);
   });
 
-  return { success: true };
+  return await getCompany(ctx, { id });
 }
 
 /**
@@ -560,7 +632,7 @@ export async function updateCompanyAssignee(
 /**
  * Gets company history logs
  */
-export async function getCompanyHistory(ctx: ServiceContext, input: { id: string }) {
+export async function getCompanyHistory(ctx: ServiceContext, input: { id: string; page?: number | string }) {
   const { id } = input;
   const existing = await prisma.orm.public.Companies.where({ id }).first();
   if (!existing) {
@@ -571,27 +643,69 @@ export async function getCompanyHistory(ctx: ServiceContext, input: { id: string
   const cleanLogs = convertBigInts(rawLogs || []);
 
   const cleanProfiles = await getProfiles();
-  const profileNameMap: Record<string, string> = {};
-  cleanProfiles.forEach((p) => {
-    profileNameMap[p.id] = p.fullName || p.email || 'User';
-  });
+  const profileMap = new Map<string, CleanProfile>(cleanProfiles.map((p) => [p.id, p]));
+
+  const resolveProfile = async (userId: string | null) => {
+    if (!userId) return null;
+    let p = profileMap.get(userId);
+    if (!p) {
+      const dbP = await prisma.orm.public.Profiles.where({ id: userId }).first();
+      if (dbP) {
+        p = {
+          id: String(dbP.id),
+          fullName: String(dbP.fullName || ''),
+          email: String(dbP.email || ''),
+          name: String(dbP.fullName || dbP.email || 'User'),
+          isActive: Boolean(dbP.isActive),
+        };
+        profileMap.set(userId, p);
+      }
+    }
+    return p ? { id: p.id, fullName: p.fullName || p.name || 'User' } : null;
+  };
 
   cleanLogs.sort(
     (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  return cleanLogs.map((h: any) => {
-    const actorIdStr = h.actorId ? String(h.actorId) : null;
-    return {
-      id: String(h.id),
-      companyId: String(h.companyId),
-      action: String(h.action),
-      actorId: actorIdStr,
-      actorName: actorIdStr ? profileNameMap[actorIdStr] || 'User' : 'System',
-      oldValue: h.oldValue ? String(h.oldValue) : null,
-      newValue: h.newValue ? String(h.newValue) : null,
-      details: h.details || {},
-      createdAt: h.createdAt ? new Date(h.createdAt).toISOString() : null,
-    };
-  });
+  const items = await Promise.all(
+    cleanLogs.map(async (h: any) => {
+      const actorIdStr = h.actorId ? String(h.actorId) : null;
+      const actorProfile = await resolveProfile(actorIdStr);
+      const action = String(h.action);
+
+      const base: Record<string, any> = {
+        id: String(h.id),
+        companyId: String(h.companyId),
+        action,
+        oldValue: h.oldValue ? String(h.oldValue) : null,
+        newValue: h.newValue ? String(h.newValue) : null,
+        details: h.details || {},
+        createdAt: h.createdAt ? new Date(h.createdAt).toISOString() : null,
+        actor: actorProfile,
+        actorId: actorIdStr,
+        actorName: actorProfile ? actorProfile.fullName : (actorIdStr ? 'User' : 'System'),
+      };
+
+      if (action === 'reassigned') {
+        base.oldAssignee = await resolveProfile(h.oldValue ? String(h.oldValue) : null);
+        base.newAssignee = await resolveProfile(h.newValue ? String(h.newValue) : null);
+      }
+
+      return base;
+    })
+  );
+
+  const page = Math.max(1, parseInt(String(input.page || '1'), 10));
+  const pageSize = 50;
+  const total = items.length;
+  const startIndex = (page - 1) * pageSize;
+  const pagedItems = items.slice(startIndex, startIndex + pageSize);
+
+  return {
+    items: pagedItems,
+    total,
+    page,
+    pageSize,
+  };
 }

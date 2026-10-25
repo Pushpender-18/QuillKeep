@@ -9,12 +9,8 @@ export async function POST(request: NextRequest) {
     const user = await getApiUser(request);
     const body = await request.json().catch(() => ({}));
 
-    if (body.id && !body.ids) {
-      const result = await restoreCompany({ user }, { id: body.id });
-      return apiSuccess(result);
-    }
-
-    const result = await bulkRestore({ user }, body);
+    const ids = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+    const result = await bulkRestore({ user }, { ...body, ids });
     return apiSuccess(result);
   } catch (err) {
     return apiError(err);

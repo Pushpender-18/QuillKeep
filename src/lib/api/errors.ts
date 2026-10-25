@@ -19,18 +19,21 @@ export class ApiError extends Error {
   public readonly code: ApiErrorCode;
   public readonly status: number;
   public readonly fields?: Record<string, string>;
+  public readonly details?: any;
 
   constructor(
     code: ApiErrorCode,
     message: string,
     status = 400,
-    fields?: Record<string, string>
+    fields?: Record<string, string>,
+    details?: any
   ) {
     super(message);
     this.name = 'ApiError';
     this.code = code;
     this.status = status;
     this.fields = fields;
+    this.details = details;
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 
@@ -50,8 +53,11 @@ export class ApiError extends Error {
     return new ApiError('not_found', message, 404);
   }
 
-  static duplicateName(message = 'A record with this name already exists'): ApiError {
-    return new ApiError('duplicate_name', message, 409);
+  static duplicateName(
+    message = 'A record with this name already exists',
+    details?: { existingCompanyId: string; existingName: string; existingIsArchived: boolean } | any
+  ): ApiError {
+    return new ApiError('duplicate_name', message, 409, undefined, details);
   }
 
   static archivedCompany(message = 'Cannot modify an archived company'): ApiError {

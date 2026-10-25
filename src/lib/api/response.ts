@@ -83,6 +83,10 @@ export function apiError(err: unknown, customHeaders: Record<string, string> = {
     errorPayload.fields = apiErr.fields;
   }
 
+  if (apiErr.details !== undefined) {
+    errorPayload.details = apiErr.details;
+  }
+
   return NextResponse.json(
     { ok: false, error: errorPayload },
     {

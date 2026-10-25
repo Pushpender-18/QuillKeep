@@ -11,8 +11,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   try {
     const user = await getApiUser(request);
     const { id } = await params;
-    const result = await getCompanyHistory({ user }, { id });
-    return apiSuccess({ items: result });
+    const page = request.nextUrl.searchParams.get('page') || '1';
+    const result = await getCompanyHistory({ user }, { id, page });
+    return apiSuccess(result);
   } catch (err) {
     return apiError(err);
   }
