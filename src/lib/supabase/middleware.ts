@@ -34,6 +34,11 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
+  // Exclude /api/v1 from cookie session updates and redirects to /login
+  if (pathname.startsWith('/api/v1')) {
+    return NextResponse.next({ request });
+  }
+
   // Unauthenticated users trying to access protected routes -> /login
   if (!user && pathname !== '/login') {
     const url = request.nextUrl.clone();

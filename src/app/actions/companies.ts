@@ -2,202 +2,59 @@
 
 import { getCurrentUser } from '@/lib/auth';
 import { safeAction } from '@/lib/safe-action';
-import { prisma } from '@/lib/prisma';
-import { withUser } from '@/lib/db';
-import { db } from '@/prisma/db';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
-import { getCustomFieldDefinitions, mergeAndValidateCustomFields } from '@/lib/custom-fields';
-
-const companySchema = z.object({
-  name: z.string().min(1, 'Company name is required'),
-  industryId: z.string().nullable().optional(),
-  stateId: z.string().nullable().optional(),
-  location: z.string().nullable().optional(),
-  priority: z.enum(['low', 'medium', 'high']).default('medium'),
-  assignedTo: z.string().nullable().optional(),
-  contactName: z.string().nullable().optional(),
-  contactEmail: z.string().nullable().optional(),
-  contactPhone: z.string().nullable().optional(),
-  initialStatus: z.enum(['new', 'contacted', 'not_interested', 'contact_later', 'meeting_scheduled']).optional(),
-  dueAt: z.string().nullable().optional(),
-  reminderType: z.enum(['callback', 'meeting', 'missed_call', 'manual']).nullable().optional(),
-  note: z.string().nullable().optional(),
-  customFields: z.record(z.string(), z.any()).nullable().optional(),
-});
+import {
+  checkCompanyName,
+  createCompany,
+  updateCompany,
+  changeCompanyStatus,
+  archiveCompany,
+  restoreCompany,
+  updateCompanyPriority,
+  updateCompanyAssignee,
+} from '@/lib/services/companies';
 
 /**
  * Checks if a company name already exists (case-insensitive, trimmed).
- * Also returns if the matching company is archived.
  */
 export async function checkCompanyNameAction(name: string, excludeId?: string) {
   try {
-    await getCurrentUser();
-    const cleanName = name.trim().toLowerCase();
-    
-    const allCompanies = await prisma.orm.public.Companies.all();
-    const match = allCompanies.find(
-      (c: any) =>
-        String(c.name).trim().toLowerCase() === cleanName &&
-        (!excludeId || String(c.id) !== excludeId)
-    );
-
-    if (match) {
-      return {
-        exists: true,
-        isArchived: Boolean(match.isArchived),
-        companyId: String(match.id),
-      };
-    }
-    return { exists: false, isArchived: false };
+    const user = await getCurrentUser();
+    const result = await checkCompanyName({ user }, { name, excludeId });
+    return result;
   } catch (err: any) {
-    return { exists: false, isArchived: false, error: err?.message };
+    return { exists: false, isArchived: false, companyId: null, error: err?.message };
   }
 }
 
 /**
- * Creates a new company record within a withUser transaction.
+ * Creates a new company record.
  */
 export async function createCompanyAction(input: any) {
   return safeAction('createCompanyAction', async (user) => {
-    const parsed = companySchema.parse(input);
-
-    // Name uniqueness check
-    const checkRes = await checkCompanyNameAction(parsed.name);
-    if (checkRes.exists) {
-      if (checkRes.isArchived) {
-        throw new Error('This company is archived.');
-      }
-      throw new Error('A company with this name already exists');
-    }
-
-    // Custom fields validation
-    const definitions = await getCustomFieldDefinitions();
-    const cfValidation = mergeAndValidateCustomFields({}, parsed.customFields, definitions);
-    if (!cfValidation.valid) {
-      throw new Error(cfValidation.error || 'Invalid custom fields');
-    }
-
-    const companyId = await withUser(user.id, async (tx) => {
-      // 1. Create company record with initial status 'new'
-      const newCompany = await tx.orm.public.Companies.create({
-        name: parsed.name.trim(),
-        industryId: parsed.industryId || null,
-        stateId: parsed.stateId || null,
-        location: parsed.location || null,
-        priority: parsed.priority,
-        assignedTo: parsed.assignedTo || user.id,
-        createdBy: user.id,
-        status: 'new',
-        customFields: cfValidation.customFields,
-      });
-
-      const id = String(newCompany.id);
-
-      // 2. Create primary contact if contact details provided
-      if (parsed.contactName) {
-        await tx.orm.public.Contacts.create({
-          companyId: id,
-          name: parsed.contactName.trim(),
-          email: parsed.contactEmail ? parsed.contactEmail.trim() : null,
-          phone: parsed.contactPhone ? parsed.contactPhone.trim() : null,
-          isPrimary: true,
-        });
-      }
-
-      // 3. If initialStatus is NOT 'new', call change_company_status procedure
-      const targetStatus = parsed.initialStatus || 'new';
-      if (targetStatus !== 'new') {
-        const dueAt = parsed.dueAt || null;
-        const reminderType = parsed.reminderType || null;
-        const note = parsed.note || null;
-
-        let plan: any;
-        if (dueAt && reminderType && note) {
-          plan = db.raw
-            .sql`select change_company_status(${id}::uuid, ${targetStatus}::lead_status, ${dueAt}::timestamptz, ${reminderType}::reminder_type, ${note})`
-            .affectedCount()
-            .build();
-        } else if (dueAt && reminderType) {
-          plan = db.raw
-            .sql`select change_company_status(${id}::uuid, ${targetStatus}::lead_status, ${dueAt}::timestamptz, ${reminderType}::reminder_type, null)`
-            .affectedCount()
-            .build();
-        } else {
-          plan = db.raw
-            .sql`select change_company_status(${id}::uuid, ${targetStatus}::lead_status, null::timestamptz, null::reminder_type, null)`
-            .affectedCount()
-            .build();
-        }
-        await tx.execute(plan);
-      }
-
-      return id;
-    });
-
+    const result = await createCompany({ user }, input);
     revalidatePath('/companies');
-    return { success: true, companyId };
+    return { success: true, companyId: result.companyId };
   });
 }
 
 /**
- * Updates company details (Name, Industry, State, Location, Priority, Assignee, CustomFields).
- * Status is not updated via this action.
+ * Updates company details.
  */
 export async function updateCompanyAction(companyId: string, input: any) {
   try {
     const user = await getCurrentUser();
-    
-    // Validate inputs
-    const parsed = companySchema.partial().parse(input);
-    if (parsed.name) {
-      const checkRes = await checkCompanyNameAction(parsed.name, companyId);
-      if (checkRes.exists) {
-        if (checkRes.isArchived) {
-          return {
-            success: false,
-            error: 'This company name matches an archived company.',
-            isArchived: true,
-          };
-        }
-        return { success: false, error: 'A company with this name already exists' };
-      }
-    }
-
-    // Validate custom fields if submitted
-    let validatedCF: Record<string, any> | undefined = undefined;
-    if (parsed.customFields !== undefined) {
-      const existingCompanies = await prisma.orm.public.Companies.where({ id: companyId }).all();
-      const existingComp = existingCompanies[0];
-      const existingCF = (existingComp as any)?.customFields || {};
-      const definitions = await getCustomFieldDefinitions();
-      const cfValidation = mergeAndValidateCustomFields(existingCF, parsed.customFields, definitions);
-      if (!cfValidation.valid) {
-        return { success: false, error: cfValidation.error };
-      }
-      validatedCF = cfValidation.customFields;
-    }
-
-    await withUser(user.id, async (tx) => {
-      const updateData: any = {};
-      if (parsed.name) updateData.name = parsed.name.trim();
-      if (parsed.industryId !== undefined) updateData.industryId = parsed.industryId || null;
-      if (parsed.stateId !== undefined) updateData.stateId = parsed.stateId || null;
-      if (parsed.location !== undefined) updateData.location = parsed.location || null;
-      if (parsed.priority) updateData.priority = parsed.priority;
-      if (parsed.assignedTo !== undefined) updateData.assignedTo = parsed.assignedTo || null;
-      if (validatedCF !== undefined) updateData.customFields = validatedCF;
-      updateData.updatedAt = new Date().toISOString();
-
-      await tx.orm.public.Companies.where({ id: companyId }).update(updateData);
-    });
-
+    await updateCompany({ user }, { id: companyId, data: input });
     revalidatePath('/companies');
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
   } catch (err: any) {
     console.error('[UPDATE_COMPANY_ACTION]', err);
-    return { success: false, error: err?.message || 'Failed to update company' };
+    return {
+      success: false,
+      error: err?.message || 'Failed to update company',
+      isArchived: err?.code === 'archived_company',
+    };
   }
 }
 
@@ -213,28 +70,7 @@ export async function changeCompanyStatusAction(
 ) {
   try {
     const user = await getCurrentUser();
-
-    await withUser(user.id, async (tx) => {
-      let plan: any;
-      if (dueAt && reminderType && note) {
-        plan = db.raw
-          .sql`select change_company_status(${companyId}::uuid, ${status}::lead_status, ${dueAt}::timestamptz, ${reminderType}::reminder_type, ${note})`
-          .affectedCount()
-          .build();
-      } else if (dueAt && reminderType) {
-        plan = db.raw
-          .sql`select change_company_status(${companyId}::uuid, ${status}::lead_status, ${dueAt}::timestamptz, ${reminderType}::reminder_type, null)`
-          .affectedCount()
-          .build();
-      } else {
-        plan = db.raw
-          .sql`select change_company_status(${companyId}::uuid, ${status}::lead_status, null::timestamptz, null::reminder_type, null)`
-          .affectedCount()
-          .build();
-      }
-      await tx.execute(plan);
-    });
-
+    await changeCompanyStatus({ user }, { id: companyId, status, dueAt, reminderType, note });
     revalidatePath('/companies');
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
@@ -250,18 +86,7 @@ export async function changeCompanyStatusAction(
 export async function archiveCompanyAction(companyId: string, reason?: string, note?: string) {
   try {
     const user = await getCurrentUser();
-    const finalReason = [reason, note].filter(Boolean).join(' - ') || 'Archived';
-
-    await withUser(user.id, async (tx) => {
-      await tx.orm.public.Companies.where({ id: companyId }).update({
-        isArchived: true,
-        archivedAt: new Date().toISOString(),
-        archivedBy: user.id,
-        archiveReason: finalReason,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-
+    await archiveCompany({ user }, { id: companyId, reason, note });
     revalidatePath('/companies');
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
@@ -277,17 +102,7 @@ export async function archiveCompanyAction(companyId: string, reason?: string, n
 export async function restoreCompanyAction(companyId: string) {
   try {
     const user = await getCurrentUser();
-
-    await withUser(user.id, async (tx) => {
-      await tx.orm.public.Companies.where({ id: companyId }).update({
-        isArchived: false,
-        archivedAt: null,
-        archivedBy: null,
-        archiveReason: null,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-
+    await restoreCompany({ user }, { id: companyId });
     revalidatePath('/companies');
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
@@ -303,13 +118,7 @@ export async function restoreCompanyAction(companyId: string) {
 export async function updatePriorityAction(companyId: string, priority: 'low' | 'medium' | 'high') {
   try {
     const user = await getCurrentUser();
-    await withUser(user.id, async (tx) => {
-      await tx.orm.public.Companies.where({ id: companyId }).update({
-        priority,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-
+    await updateCompanyPriority({ user }, { id: companyId, priority });
     revalidatePath('/companies');
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
@@ -324,13 +133,7 @@ export async function updatePriorityAction(companyId: string, priority: 'low' | 
 export async function updateAssigneeAction(companyId: string, assignedTo: string) {
   try {
     const user = await getCurrentUser();
-    await withUser(user.id, async (tx) => {
-      await tx.orm.public.Companies.where({ id: companyId }).update({
-        assignedTo: assignedTo || null,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-
+    await updateCompanyAssignee({ user }, { id: companyId, assignedTo });
     revalidatePath('/companies');
     revalidatePath(`/companies/${companyId}`);
     return { success: true };

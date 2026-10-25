@@ -3,6 +3,24 @@ import { prisma } from '@/lib/prisma';
 import { convertBigInts } from '@/lib/utils';
 import { getCustomFieldDefinitions as fetchCustomFieldDefs, CustomFieldDefinition } from './custom-fields';
 
+function safeCache<T extends (...args: any[]) => Promise<any>>(
+  fn: T,
+  keyParts?: string[],
+  options?: { revalidate?: number | false; tags?: string[] }
+): T {
+  const cached = unstable_cache(fn, keyParts, options);
+  return (async (...args: any[]) => {
+    try {
+      return await cached(...args);
+    } catch (err: any) {
+      if (err?.message?.includes('incrementalCache missing')) {
+        return await fn(...args);
+      }
+      throw err;
+    }
+  }) as T;
+}
+
 export interface CleanIndustry {
   id: string;
   name: string;
@@ -23,7 +41,7 @@ export interface CleanProfile {
   isActive: boolean;
 }
 
-export const getIndustries = unstable_cache(
+export const getIndustries = safeCache(
   async (): Promise<CleanIndustry[]> => {
     try {
       const raw = await prisma.orm.public.Industries.all();
@@ -41,7 +59,7 @@ export const getIndustries = unstable_cache(
   { tags: ['industries'], revalidate: 300 }
 );
 
-export const getRankedIndustries = unstable_cache(
+export const getRankedIndustries = safeCache(
   async (): Promise<CleanIndustry[]> => {
     try {
       const rows = await prisma.$queryRaw`select * from industries_ranked(90)`;
@@ -62,7 +80,7 @@ export const getRankedIndustries = unstable_cache(
 );
 
 
-export const getStates = unstable_cache(
+export const getStates = safeCache(
   async (): Promise<CleanState[]> => {
     try {
       const raw = await prisma.orm.public.States.all();
@@ -80,7 +98,7 @@ export const getStates = unstable_cache(
   { tags: ['states'], revalidate: 300 }
 );
 
-export const getProfiles = unstable_cache(
+export const getProfiles = safeCache(
   async (): Promise<CleanProfile[]> => {
     try {
       const raw = await prisma.orm.public.Profiles.all();
@@ -100,7 +118,7 @@ export const getProfiles = unstable_cache(
   { tags: ['profiles'], revalidate: 300 }
 );
 
-export const getCustomFieldDefinitionsCached = unstable_cache(
+export const getCustomFieldDefinitionsCached = safeCache(
   async (): Promise<CustomFieldDefinition[]> => {
     return fetchCustomFieldDefs();
   },

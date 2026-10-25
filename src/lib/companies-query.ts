@@ -67,15 +67,16 @@ export function parseSearchParams(
     .filter((d) => d.isActive)
     .forEach((def) => {
       const defId = String(def.id);
+      const dotVal = getParam(`cf.${defId}`);
       if (def.fieldType === 'text') {
-        const v = getParam(`cf_text_${defId}`);
+        const v = dotVal || getParam(`cf_text_${defId}`);
         if (v) cfFilters.push({ fieldId: defId, type: 'text', textVal: v });
       } else if (def.fieldType === 'dropdown') {
-        const v = getParam(`cf_drop_${defId}`);
+        const v = dotVal || getParam(`cf_drop_${defId}`);
         if (v) cfFilters.push({ fieldId: defId, type: 'dropdown', dropdownVals: v.split(',').filter(Boolean) });
       } else if (def.fieldType === 'number') {
-        const min = getParam(`cf_num_min_${defId}`);
-        const max = getParam(`cf_num_max_${defId}`);
+        const min = getParam(`cf_num_min_${defId}`) || (dotVal && !dotVal.includes(',') ? dotVal : dotVal?.split(',')[0]);
+        const max = getParam(`cf_num_max_${defId}`) || (dotVal && dotVal.includes(',') ? dotVal.split(',')[1] : undefined);
         if (min || max) {
           cfFilters.push({
             fieldId: defId,
@@ -85,8 +86,8 @@ export function parseSearchParams(
           });
         }
       } else if (def.fieldType === 'date') {
-        const from = getParam(`cf_date_from_${defId}`);
-        const to = getParam(`cf_date_to_${defId}`);
+        const from = getParam(`cf_date_from_${defId}`) || (dotVal && !dotVal.includes(',') ? dotVal : dotVal?.split(',')[0]);
+        const to = getParam(`cf_date_to_${defId}`) || (dotVal && dotVal.includes(',') ? dotVal.split(',')[1] : undefined);
         if (from || to) {
           cfFilters.push({
             fieldId: defId,

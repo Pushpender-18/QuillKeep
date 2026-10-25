@@ -1,36 +1,19 @@
 'use server';
 
 import { getCurrentUser } from '@/lib/auth';
-import { withUser } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
-import { z } from 'zod';
-
-const contactSchema = z.object({
-  companyId: z.string().min(1, 'Company ID is required'),
-  name: z.string().min(1, 'Contact name is required'),
-  jobTitle: z.string().nullable().optional(),
-  email: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  isPrimary: z.boolean().default(false),
-});
+import {
+  createContact,
+  updateContact,
+  deleteContact,
+  makePrimaryContact,
+} from '@/lib/services/contacts';
 
 export async function addContactAction(input: any) {
   try {
     const user = await getCurrentUser();
-    const parsed = contactSchema.parse(input);
-
-    await withUser(user.id, async (tx) => {
-      await tx.orm.public.Contacts.create({
-        companyId: parsed.companyId,
-        name: parsed.name.trim(),
-        jobTitle: parsed.jobTitle ? parsed.jobTitle.trim() : null,
-        email: parsed.email ? parsed.email.trim() : null,
-        phone: parsed.phone ? parsed.phone.trim() : null,
-        isPrimary: parsed.isPrimary,
-      });
-    });
-
-    revalidatePath(`/companies/${parsed.companyId}`);
+    const result = await createContact({ user }, input);
+    revalidatePath(`/companies/${result.companyId}`);
     return { success: true };
   } catch (err: any) {
     console.error('[ADD_CONTACT_ACTION]', err);
@@ -41,20 +24,7 @@ export async function addContactAction(input: any) {
 export async function updateContactAction(contactId: string, companyId: string, input: any) {
   try {
     const user = await getCurrentUser();
-    const parsed = contactSchema.partial().parse(input);
-
-    await withUser(user.id, async (tx) => {
-      const updateData: any = {};
-      if (parsed.name) updateData.name = parsed.name.trim();
-      if (parsed.jobTitle !== undefined) updateData.jobTitle = parsed.jobTitle ? parsed.jobTitle.trim() : null;
-      if (parsed.email !== undefined) updateData.email = parsed.email ? parsed.email.trim() : null;
-      if (parsed.phone !== undefined) updateData.phone = parsed.phone ? parsed.phone.trim() : null;
-      if (parsed.isPrimary !== undefined) updateData.isPrimary = parsed.isPrimary;
-      updateData.updatedAt = new Date().toISOString();
-
-      await tx.orm.public.Contacts.where({ id: contactId }).update(updateData);
-    });
-
+    await updateContact({ user }, { id: contactId, companyId, data: input });
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
   } catch (err: any) {
@@ -66,11 +36,7 @@ export async function updateContactAction(contactId: string, companyId: string, 
 export async function deleteContactAction(contactId: string, companyId: string) {
   try {
     const user = await getCurrentUser();
-
-    await withUser(user.id, async (tx) => {
-      await tx.orm.public.Contacts.where({ id: contactId }).delete();
-    });
-
+    await deleteContact({ user }, { id: contactId, companyId });
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
   } catch (err: any) {
@@ -82,14 +48,7 @@ export async function deleteContactAction(contactId: string, companyId: string) 
 export async function setPrimaryContactAction(contactId: string, companyId: string) {
   try {
     const user = await getCurrentUser();
-
-    await withUser(user.id, async (tx) => {
-      await tx.orm.public.Contacts.where({ id: contactId }).update({
-        isPrimary: true,
-        updatedAt: new Date().toISOString(),
-      });
-    });
-
+    await makePrimaryContact({ user }, { id: contactId, companyId });
     revalidatePath(`/companies/${companyId}`);
     return { success: true };
   } catch (err: any) {
